@@ -67,6 +67,63 @@ def compute_accuracy(label, score):
     return sum(label == score_to_prediction(score)) / len(label)
 
 
+def compute_ADAS_benefit(data):
+    # 添加一列用于标识随访时间
+    months = np.zeros(data.shape[0], int)
+    for i, viscode in enumerate(data['VISCODE'].values):
+        if viscode == 'bl':
+            months[i] = 0
+        else:
+            months[i] = int(viscode[1:])
+    data.insert(2, 'months', months)
+
+    # 排序
+    data = data.sort_values(['RID', 'months'])
+    data.index = range(data.shape[0])
+
+    # 计算benefit
+    benefit = np.zeros(data.shape[0], 'float32')
+    i = 0
+    while i < data.shape[0]:
+        rid = data.loc[i, 'RID']
+
+        # 寻找第一个不是nan的ADAS13
+        before_adas13 = data.loc[i, 'ADAS13']
+        i = i + 1
+        while pd.isna(before_adas13) and i < data.shape[0] and data.loc[i, 'RID'] == rid:
+            benefit[i - 1] = np.nan
+            before_adas13 = data.loc[i, 'ADAS13']
+            i = i + 1
+
+        # 没有找到不是nan的ADAS13
+        if pd.isna(before_adas13):
+            benefit[i - 1] = np.nan
+            continue
+
+        # 找到了第一个不是nan的ADAS13
+        before_index = i - 1
+        while i < data.shape[0] and data.loc[i, 'RID'] == rid:
+            now_adas13 = data.loc[i, 'ADAS13']
+            if pd.isna(now_adas13):
+                benefit[i] = np.nan
+            else:
+                diff = before_adas13 - now_adas13
+                if diff > 0:
+                    benefit[before_index] = diff
+                else:
+                    benefit[before_index] = 0
+                before_adas13 = now_adas13
+                before_index = i
+            i = i + 1
+        benefit[before_index] = np.nan
+
+    # 插入benefit字段
+    data.insert(data.shape[1], 'benefit', benefit)
+    data.index = range(data.shape[0])
+
+    return data
+
+
 def compute_benefit(label, score, benefit):
     return sum(benefit[label == score_to_prediction(score)]) / sum(benefit)
 
