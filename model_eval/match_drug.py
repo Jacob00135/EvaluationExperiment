@@ -111,7 +111,7 @@ def match_drug_info():
     data.index = range(data.shape[0])
 
     # 导出
-    data.to_csv(os.path.join(root_path, 'data/Patient drug statistics.csv'), index=False)
+    data.to_csv(os.path.join(root_path, 'data/PatientDrugStatistics.csv'), index=False)
 
 
 if __name__ == '__main__':
