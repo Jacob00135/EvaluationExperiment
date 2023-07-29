@@ -7,7 +7,8 @@ import pdb
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.legend_handler import HandlerPathCollection
+from copy import deepcopy
+from collections import OrderedDict
 from PIL import Image
 
 now_path = os.path.dirname(__file__)
@@ -70,6 +71,11 @@ class DrawScatter(object):
                               越高被剔除的点越多
         :return: pd.DataFrame。处理完毕的数据
         """
+        # 令横坐标最大和纵坐标最大的点不在可排除范围内
+        best_x = data.iloc[data['var'].values.argmax(), 0]
+        best_y = data.iloc[data['benefit'].values.argmax(), 1]
+
+        # 搜索距离近的点删除
         i = 0
         while i < data.shape[0] - 1:
             if not (x[0] <= data.iloc[i, 0] <= x[1] and y[0] <= data.iloc[i, 1] <= y[1]):
@@ -78,7 +84,8 @@ class DrawScatter(object):
             j = i + 1
             while j < data.shape[0] and x[0] <= data.iloc[j, 0] <= x[1] and\
                     abs(data.iloc[j, 0] - data.iloc[i, 0]) <= x_thre:
-                if y[0] <= data.iloc[j, 1] <= y[1] and abs(data.iloc[j, 1] - data.iloc[i, 1]) <= y_thre:
+                if y[0] <= data.iloc[j, 1] <= y[1] and abs(data.iloc[j, 1] - data.iloc[i, 1]) <= y_thre and\
+                        data.iloc[j, 0] != best_x and data.iloc[j, 1] != best_y:
                     data = data.drop(data.index[j], axis=0)
                 else:
                     j = j + 1
@@ -107,7 +114,7 @@ class DrawScatter(object):
         """
         绘制完整的散点图
 
-        :param ax: 子图对象。需要通过实例方法generate_figure获取，默认为None
+        :param ax: 子图对象。默认为None
         :param xlabel: str. x轴的标签，默认为None，意为使用变量名作为x轴的标签
         :param adjust_padding: dict. 调整画布与图片边距的字典，例：{'left': 0.1, 'top': 0.9}。
                                默认为None，若为None则不调整边距
@@ -116,28 +123,25 @@ class DrawScatter(object):
         if xlabel is None:
             xlabel = self.var_name
         plt.scatter(
-            self.data['MRI'][:, 0], self.data['MRI'][:, 1], marker='o',
-            s=60, lw=1, ec='#555555', label='MRI', zorder=2
+            self.data['MRI'][:, 0], self.data['MRI'][:, 1], marker='o', c='#6868ff',
+            s=15, lw=0.2, ec='#555555', label='MRI', zorder=2
         )
         plt.scatter(
-            self.data['nonImg'][:, 0], self.data['nonImg'][:, 1], marker='^',
-            s=100, lw=1, ec='#555555', label='nonImg', zorder=4
+            self.data['nonImg'][:, 0], self.data['nonImg'][:, 1], marker='^', c='#ff8b26',
+            s=25, lw=0.2, ec='#555555', label='nonImg', zorder=4
         )
         plt.scatter(
-            self.data['Fusion'][:, 0], self.data['Fusion'][:, 1], marker='v',
-            s=140, lw=1, c='red', ec='black', label='Fusion', zorder=6
+            self.data['Fusion'][:, 0], self.data['Fusion'][:, 1], marker='v', c='#ff0000',
+            s=35, lw=0.2, ec='black', label='Fusion', zorder=6
         )
         plt.xlim(0, 1)
         plt.ylim(0, 1)
-        ticks = []
-        for i in range(1, 11, 2):
-            tick = round(0.1 * i, 1)
-            ticks.append(tick)
-        plt.xticks(ticks, fontsize=20)
-        plt.yticks(ticks, fontsize=20)
+        ticks = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+        plt.xticks(ticks, fontsize=16)
+        plt.yticks(ticks, fontsize=16)
         plt.xlabel(xlabel, fontsize=28)
         plt.ylabel('benefit', fontsize=28)
-        plt.legend(fontsize=20)
+        plt.legend(fontsize=16)
         plt.grid(True, c='#eeeeee', ls='--', zorder=0)
         if adjust_padding is not None:
             plt.subplots_adjust(**adjust_padding)
@@ -233,6 +237,21 @@ class DrawScatter(object):
             filter_data = self.filter_section(data, x_thre=thre, y_thre=thre)
             self.data[model_name] = filter_data.values
 
+    def filter_magnify_scatter(self, thre=0.005):
+        """
+        仅剔除放大的图中的散点，使得图中的散点不那么密集
+
+
+        :param thre: float. 默认为0.005。判断散点是否密集的阈值，越高被剔除的点越多
+        :return: None
+        """
+        magnify_x = self.get_magnify_x()
+        magnify_y = self.get_magnify_y()
+        for model_name, data in self.data.items():
+            data = pd.DataFrame(data, columns=['var', 'benefit'])
+            filter_data = self.filter_section(data, x=magnify_x, y=magnify_y, x_thre=thre, y_thre=thre)
+            self.data[model_name] = filter_data.values
+
     def filter_four_section_scatter(self, thre1=0.01, thre2=0.005):
         """
         将散点图分成4个区域：1个区域放大，3个区域不放大，使用不同的阈值剔除两种区域
@@ -288,18 +307,24 @@ class DrawScatter(object):
         plt.plot(
             [magnify_x[0], magnify_x[0], magnify_x[1], magnify_x[1], magnify_x[0]],
             [magnify_y[0], magnify_y[1], magnify_y[1], magnify_y[0], magnify_y[0]],
-            c='red', ls='--', lw=2
+            c='red', ls='--', lw=2, zorder=14
         )
 
-    def draw_magnify_scatter(self, ax=None, legend_loc='best', xlabel=None, adjust_padding=None):
+    def draw_magnify_scatter(self, point_size=(150, 250, 350), ax=None, legend_loc='best', xlabel=None,
+                             ticks_fontsize=16, label_fontsize=28, legend_fontsize=16, adjust_padding=None,
+                             ticks_step=None):
         """
         绘制放大区域的散点图
-
-        :param ax: 子图对象。需要通过实例方法generate_figure获取，默认为None
+        :param point_size: tuple. 三个模型的散点大小，默认为(150, 250, 350)
+        :param ax: 子图对象。默认为None
         :param legend_loc: str. 指定图例的位置，默认值为'best'。例如：'left upper'
         :param xlabel: str. 图的x轴标签，默认为None，使用变量名。可使用LaTeX语法，如：$x^2$
+        :param ticks_fontsize: int. 坐标轴刻度字号
+        :param label_fontsize: int. 坐标轴标签字号
+        :param legend_fontsize: int. 图例字号
         :param adjust_padding: dict. 调整画布与图片边距的字典，例：{'left': 0.1, 'top': 0.9}。
                                默认为None，若为None则不调整边距
+        :param ticks_step: float. x轴和y轴的刻度步长
         :return: None
         """
         # 获取被放大的区域的坐标，并检查被放大的区域是否是正方形
@@ -315,36 +340,41 @@ class DrawScatter(object):
             ))
 
         # 画散点
-        # ax = plt.subplot(1, 1, 1)
         plt.scatter(
             self.data['MRI'][:, 0], self.data['MRI'][:, 1], marker='o',
-            s=560, lw=2, c='#6868ff', ec='#555555', label='MRI', zorder=2
+            s=point_size[0], lw=1, c='#6868ff', ec='#555555', label='MRI', zorder=2
         )
         plt.scatter(
             self.data['nonImg'][:, 0], self.data['nonImg'][:, 1], marker='^',
-            s=600, lw=2, c='#ff8b26', ec='#555555', label='nonImg', zorder=4
+            s=point_size[1], lw=1, c='#ff8b26', ec='#555555', label='nonImg', zorder=4
         )
         plt.scatter(
             self.data['Fusion'][:, 0], self.data['Fusion'][:, 1], marker='v',
-            s=640, lw=2, c='red', ec='#555555', label='Fusion', zorder=6
+            s=point_size[2], lw=1, c='#ff0000', ec='#555555', label='Fusion', zorder=6
         )
         plt.xlim(*magnify_x)
         plt.ylim(*magnify_y)
 
         # 画x轴和y轴的刻度等
-        xticks = []
-        for i in range(0, num_xticks, 3) if num_xticks < 15 else range(0, num_xticks + 1, 4):
-            xtick = round(magnify_x[0] + 0.01 * i, 2)
-            xticks.append(xtick)
-        yticks = []
-        for i in range(0, num_yticks, 3) if num_yticks < 15 else range(0, num_yticks + 1, 4):
-            ytick = round(magnify_y[0] + 0.01 * i, 2)
-            yticks.append(ytick)
-        plt.xticks(xticks, fontsize=40)
-        plt.yticks(yticks, fontsize=40)
-        plt.xlabel(xlabel, fontsize=48)
-        plt.ylabel('benefit', fontsize=48)
-        plt.legend(loc=legend_loc, fontsize=40)
+        if ticks_step is not None:
+            xticks = list(np.arange(magnify_x[0], magnify_x[1], ticks_step))
+            yticks = list(np.arange(magnify_y[0], magnify_y[1], ticks_step))
+            xticks.append(magnify_x[1])
+            yticks.append(magnify_y[1])
+        else:
+            xticks = []
+            for i in range(0, num_xticks, 3) if num_xticks < 15 else range(0, num_xticks + 1, 4):
+                xtick = round(magnify_x[0] + 0.01 * i, 2)
+                xticks.append(xtick)
+            yticks = []
+            for i in range(0, num_yticks, 3) if num_yticks < 15 else range(0, num_yticks + 1, 4):
+                ytick = round(magnify_y[0] + 0.01 * i, 2)
+                yticks.append(ytick)
+        plt.xticks(xticks, fontsize=ticks_fontsize)
+        plt.yticks(yticks, fontsize=ticks_fontsize)
+        plt.xlabel(xlabel, fontsize=label_fontsize)
+        plt.ylabel('benefit', fontsize=label_fontsize)
+        plt.legend(loc=legend_loc, fontsize=legend_fontsize)
         plt.grid(True, c='#eeeeee', ls='--', zorder=0)
         if adjust_padding is not None:
             plt.subplots_adjust(**adjust_padding)
@@ -405,7 +435,7 @@ class DrawScatter(object):
                 xy=best_var_point,
                 xytext=best_var_point if performance_loc is None else performance_loc,
                 arrowprops={'facecolor': 'green', 'arrowstyle': 'fancy'},
-                fontsize=40,
+                fontsize=30,
                 fontfamily='Consolas',
                 zorder=12
             )
@@ -414,7 +444,7 @@ class DrawScatter(object):
                 xy=best_benefit_point,
                 xytext=best_benefit_point if benefit_loc is None else benefit_loc,
                 arrowprops={'facecolor': 'green', 'arrowstyle': 'fancy'},
-                fontsize=40,
+                fontsize=30,
                 fontfamily='Consolas',
                 zorder=12
             )
@@ -512,47 +542,72 @@ def draw_all_test_scatter():
     }
     scatter_save_path = os.path.join(root_path, 'model_eval/eval_result/images/all_test_set/scatter')
 
-    # 确定放大的图的范围
-    draw_scatter_config = {
-        #'sensitivity': ('$sensitivity$', (0.66, 0.87), (0.79, 1.0), 'upper left', (0.74, 0.96), (0.74, 0.96)),
-        #'specificity': ('$specificity$', (0.81, 0.95), (0.8, 0.94), 'upper left', (0.85, 0.895), (0.85, 0.925)),
-        #'accuracy': ('$accuracy$', (0.72, 0.9), (0.8, 0.98), 'upper left', (0.83, 0.96), (0.78, 0.92)),
-        #'auc_nc': ('$AUC_{NC}$', (0.86, 1.0), (0.8, 0.94), 'upper left', (0.952, 0.96), (0.921, 0.93)),
-        'auc_mci': ('$AUC_{MCI}$', (0.79, 0.95), (0.78, 0.98), 'upper left', (0.885, 0.96), (0.845, 0.928)),
-        #'auc_de': ('$AUC_{DE}$', (0.86, 1.0), (0.78, 0.92), 'upper left', (0.907, 0.895), (0.91, 0.925)),
-        #'ap_nc': ('$AP_{NC}$', (0.79, 0.93), (0.78, 0.92), 'upper left', (0.87, 0.96), (0.84, 0.93)),
-        'ap_mci': ('$AP_{MCI}$', (0.8, 0.96), (0.78, 1.0), 'upper left', (0.895, 0.98), (0.855, 0.95)),
-        #'ap_de': ('$AP_{DE}$', (0.78, 0.92), (0.78, 0.92), 'upper left', (0.86, 0.98), (0.83, 0.95))
-    }
+    # 图的配置
+    full_figure_config = OrderedDict({
+        'sensitivity': ('$sensitivity$', (0.67, 0.87), (0.79, 0.99), 'upper left', (0.74, 0.96), (0.74, 0.96), 0.04),
+        'specificity': ('$specificity$', (0.79, 0.94), (0.78, 0.93), 'upper left', (0.85, 0.895), (0.85, 0.925), 0.03),
+        'accuracy': ('$accuracy$', (0.72, 0.9), (0.8, 0.98), 'upper left', (0.83, 0.96), (0.78, 0.92), 0.03),
+        'auc_nc': ('$AUC_{NC}$', (0.84, 1), (0.8, 0.96), 'upper left', (0.952, 0.96), (0.921, 0.93), 0.04),
+        'auc_mci': ('$AUC_{MCI}$', (0.77, 0.95), (0.78, 0.96), 'upper left', (0.885, 0.96), (0.845, 0.928), 0.03),
+        'auc_de': ('$AUC_{DE}$', (0.84, 1.0), (0.78, 0.94), 'upper left', (0.907, 0.895), (0.91, 0.925), 0.04),
+        'ap_nc': ('$AP_{NC}$', (0.78, 0.96), (0.78, 0.96), 'upper left', (0.87, 0.96), (0.84, 0.93), 0.03),
+        'ap_mci': ('$AP_{MCI}$', (0.8, 0.98), (0.78, 0.96), 'upper left', (0.895, 0.925), (0.855, 0.945), 0.03),
+        'ap_de': ('$AP_{DE}$', (0.77, 0.95), (0.78, 0.96), 'upper left', (0.875, 0.925), (0.815, 0.942), 0.03)
+    })
+    magnify_figure_config = OrderedDict({
+        'sensitivity': ('$sensitivity$', (0.67, 0.87), (0.79, 0.99), 'upper left', (0.74, 0.96), (0.74, 0.96), 0.04),
+        'specificity': ('$specificity$', (0.79, 0.94), (0.78, 0.93), 'upper left', (0.83, 0.89), (0.83, 0.915), 0.03),
+        'accuracy': ('$accuracy$', (0.72, 0.9), (0.8, 0.98), 'upper left', (0.82, 0.96), (0.77, 0.92), 0.03),
+        'auc_nc': ('$AUC_{NC}$', (0.84, 1), (0.8, 0.96), 'upper left', (0.93, 0.945), (0.88, 0.93), 0.04),
+        'auc_mci': ('$AUC_{MCI}$', (0.77, 0.95), (0.78, 0.96), 'upper left', (0.875, 0.945), (0.815, 0.92), 0.03),
+        'auc_de': ('$AUC_{DE}$', (0.84, 1.0), (0.78, 0.94), 'upper left', (0.89, 0.895), (0.90, 0.925), 0.04),
+        'ap_nc': ('$AP_{NC}$', (0.78, 0.96), (0.78, 0.96), 'upper left', (0.87, 0.945), (0.825, 0.925), 0.03),
+        'ap_mci': ('$AP_{MCI}$', (0.8, 0.98), (0.78, 0.96), 'upper left', (0.895, 0.925), (0.855, 0.945), 0.03),
+        'ap_de': ('$AP_{DE}$', (0.77, 0.95), (0.78, 0.96), 'upper left', (0.875, 0.925), (0.815, 0.942), 0.03)
+    })
 
-    for var_name, (
-        xlabel, magnify_x, magnify_y, legend_loc, performance_loc, benefit_loc
-    ) in draw_scatter_config.items():
+    for var_name in magnify_figure_config.keys():
         # 准备数据
         scatter_data = {}
         for model_name, data in model_data.items():
             var = data[var_name].values
             benefit = data['benefit'].values
             scatter_data[model_name] = np.vstack((var, benefit)).T
+        filter_thre = 0.008
 
-        # 画图
-        ds = DrawScatter(scatter_data, var_name)
-        # plt.figure(figsize=(13, 6.2), dpi=200)
-        # full_ax = plt.subplot(1, 2, 1)
+        # region 画全图(包括两个子图，左边完整图，右边放大图)
+        xlabel, magnify_x, magnify_y, legend_loc, perf_loc, benefit_loc, ticks_step = full_figure_config[var_name]
+        ds = DrawScatter(deepcopy(scatter_data), var_name)
+        plt.figure(figsize=(10, 4.6), dpi=300)
+        left_ax = plt.subplot(1, 2, 1)
         ds.set_magnify_x(magnify_x)
         ds.set_magnify_y(magnify_y)
-        ds.filter_four_section_scatter()
-        # ds.draw_full_scatter(ax=full_ax, xlabel=xlabel, adjust_padding={'left': 0.08, 'bottom': 0.14, 'top': 0.97})
-        # ds.draw_magnify_border()
-        #  ds.show(show=False, save_path=os.path.join(scatter_save_path, '{}_scatter'.format(var_name)))
+        ds.draw_full_scatter(ax=left_ax, xlabel=xlabel, adjust_padding={
+            'left': 0.06, 'bottom': 0.17, 'top': 0.96})
+        ds.draw_magnify_border()
+        right_ax = plt.subplot(1, 2, 2)
+        ds.filter_magnify_scatter(filter_thre)
+        ds.draw_magnify_scatter(point_size=(150, 250, 350), ax=right_ax, legend_loc=legend_loc, xlabel=xlabel,
+                                ticks_fontsize=16, label_fontsize=28, legend_fontsize=16,
+                                ticks_step=ticks_step, adjust_padding={'right': 0.99, 'bottom': 0.17, 'top': 0.96})
+        # ds.set_text(True, perf_loc, benefit_loc)
+        ds.show(show=False, save_path=os.path.join(scatter_save_path, '{}_scatter.png'.format(var_name)))
+        # endregion
 
-        plt.figure(figsize=(14.4, 7), dpi=200)
-        # magnify_ax = plt.subplot(1, 2, 2)
-        ds.draw_magnify_scatter(legend_loc=legend_loc, xlabel=xlabel, adjust_padding={
-            'left': 0.13, 'bottom': 0.18, 'top': 0.95, 'right': 0.95
-        })
-        ds.set_text(True, performance_loc, benefit_loc)
-        ds.show(show=False, save_path=os.path.join(scatter_save_path, '{}_magnify_scatter'.format(var_name)))
+        # region 画放大图(一个长宽比例接近2:1的放大图)
+        xlabel, magnify_x, magnify_y, legend_loc, perf_loc, benefit_loc, ticks_step = magnify_figure_config[var_name]
+        ds = DrawScatter(deepcopy(scatter_data), var_name)
+        plt.figure(figsize=(10, 5), dpi=300)
+        ds.set_magnify_x(magnify_x)
+        ds.set_magnify_y(magnify_y)
+        ds.filter_magnify_scatter(filter_thre)
+        ds.draw_magnify_scatter(point_size=(250, 350, 450), legend_loc=legend_loc, xlabel=xlabel, ticks_step=ticks_step,
+                                ticks_fontsize=20, label_fontsize=34, legend_fontsize=20,
+                                adjust_padding={'left': 0.12, 'right': 0.96, 'bottom': 0.18, 'top': 0.96})
+        ds.set_text(True, perf_loc, benefit_loc)
+        # ds.show(show=False, save_path='C:/Users/330c-001/Desktop/tmp.png')
+        ds.show(show=False, save_path=os.path.join(scatter_save_path, '{}_magnify_scatter.png'.format(var_name)))
+        # endregion
 
 
 def draw_all_test_heatmap():
@@ -637,17 +692,11 @@ def crop_batch_image(src_path, dst_path, box, img_extension=('png', 'jpg')):
 
 
 if __name__ == '__main__':
-    # crop_batch_image(
-    #     src_path=os.path.join(root_path, 'model_eval/eval_result/images/all_test_set/scatter'),
-    #     dst_path=os.path.join(root_path, 'model_eval/eval_result/images/all_test_set/scatter/small'),
-    #     box=(232, 195, '-0', -100),
-    #     img_extension=('png', )
-    # )
-    # crop_batch_image(
-    #     src_path=os.path.join(root_path, 'model_eval/eval_result/images/all_test_set/heatmap'),
-    #     dst_path=os.path.join(root_path, 'model_eval/eval_result/images/all_test_set/heatmap/small'),
-    #     box=(74, 88, -24, -83),
-    #     img_extension=('png', )
-    # )
-    # draw_all_test_heatmap()
+    """
+    检查散点图：
+    1.箭头与文本的位置是否合适
+    2.坐标轴刻度是否均匀、两端有刻度、合理
+    3.图例位置是否遮挡散点
+    4.画布的四个边是否贴近图片边缘
+    """
     draw_all_test_scatter()

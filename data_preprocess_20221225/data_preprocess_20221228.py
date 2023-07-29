@@ -226,7 +226,8 @@ class ConcatDatasetPreprocess(Preprocess):
         data.insert(2, 'months', months)
 
         # 排序
-        data = data.sort_values(['RID', 'months'])
+        data = data.sort_values([''
+                                 'RID', 'months'])
         data.index = range(data.shape[0])
 
         # 计算benefit
