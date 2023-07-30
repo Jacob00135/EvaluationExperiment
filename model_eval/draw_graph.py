@@ -556,14 +556,14 @@ def draw_all_test_scatter():
     })
     magnify_figure_config = OrderedDict({
         'sensitivity': ('$sensitivity$', (0.67, 0.87), (0.79, 0.99), 'upper left', (0.74, 0.96), (0.74, 0.96), 0.04),
-        'specificity': ('$specificity$', (0.79, 0.94), (0.78, 0.93), 'upper left', (0.83, 0.89), (0.83, 0.915), 0.03),
-        'accuracy': ('$accuracy$', (0.72, 0.9), (0.8, 0.98), 'upper left', (0.82, 0.96), (0.77, 0.92), 0.03),
-        'auc_nc': ('$AUC_{NC}$', (0.84, 1), (0.8, 0.96), 'upper left', (0.93, 0.945), (0.88, 0.93), 0.04),
-        'auc_mci': ('$AUC_{MCI}$', (0.77, 0.95), (0.78, 0.96), 'upper left', (0.875, 0.945), (0.815, 0.92), 0.03),
+        'specificity': ('$specificity$', (0.79, 0.94), (0.78, 0.93), 'upper left', (0.835, 0.89), (0.835, 0.915), 0.03),
+        'accuracy': ('$accuracy$', (0.72, 0.9), (0.8, 0.98), 'upper left', (0.82, 0.96), (0.775, 0.92), 0.03),
+        'auc_nc': ('$AUC_{NC}$', (0.84, 1), (0.8, 0.96), 'upper left', (0.93, 0.945), (0.89, 0.925), 0.04),
+        'auc_mci': ('$AUC_{MCI}$', (0.77, 0.95), (0.78, 0.96), 'upper left', (0.875, 0.945), (0.82, 0.92), 0.03),
         'auc_de': ('$AUC_{DE}$', (0.84, 1.0), (0.78, 0.94), 'upper left', (0.89, 0.895), (0.90, 0.925), 0.04),
-        'ap_nc': ('$AP_{NC}$', (0.78, 0.96), (0.78, 0.96), 'upper left', (0.87, 0.945), (0.825, 0.925), 0.03),
+        'ap_nc': ('$AP_{NC}$', (0.78, 0.96), (0.78, 0.96), 'upper left', (0.88, 0.945), (0.83, 0.925), 0.03),
         'ap_mci': ('$AP_{MCI}$', (0.8, 0.98), (0.78, 0.96), 'upper left', (0.895, 0.925), (0.855, 0.945), 0.03),
-        'ap_de': ('$AP_{DE}$', (0.77, 0.95), (0.78, 0.96), 'upper left', (0.875, 0.925), (0.815, 0.942), 0.03)
+        'ap_de': ('$AP_{DE}$', (0.77, 0.95), (0.78, 0.96), 'upper left', (0.875, 0.92), (0.82, 0.945), 0.03)
     })
 
     for var_name in magnify_figure_config.keys():
@@ -602,7 +602,7 @@ def draw_all_test_scatter():
         ds.set_magnify_y(magnify_y)
         ds.filter_magnify_scatter(filter_thre)
         ds.draw_magnify_scatter(point_size=(250, 350, 450), legend_loc=legend_loc, xlabel=xlabel, ticks_step=ticks_step,
-                                ticks_fontsize=20, label_fontsize=34, legend_fontsize=20,
+                                ticks_fontsize=24, label_fontsize=34, legend_fontsize=24,
                                 adjust_padding={'left': 0.12, 'right': 0.96, 'bottom': 0.18, 'top': 0.96})
         ds.set_text(True, perf_loc, benefit_loc)
         # ds.show(show=False, save_path='C:/Users/330c-001/Desktop/tmp.png')
@@ -700,3 +700,18 @@ if __name__ == '__main__':
     4.画布的四个边是否贴近图片边缘
     """
     draw_all_test_scatter()
+    """
+    在图中展示的散点，是经过了筛选的：
+    由于散点太密集，所以在放大的散点图中，剔除掉了一些点以便观察
+    剔除散点的规则如下：
+    1.对于两个点(x_i, y_i), (x_j, y_j)，若|x_i - x_j| <= thre且|y_i - y_j| <= thre则剔除其中一点，thre取0.08
+    2.对于三个模型的点，横坐标最大及纵坐标最大的点不会被剔除，因为这些点很重要
+    """
+    """
+    三个模型的个数为何不一致(分别有1624、300、100个保存点)
+    MRI是深度学习模型，训练时收敛慢，需要的训练步较多，所以能保存更多模型
+    nonImg和Fusion都是CatBoost模型，训练时收敛很快，所以只能保存较少模型
+    """
+    """
+    benefit的计算中，两次随访间隔在52周内
+    """
