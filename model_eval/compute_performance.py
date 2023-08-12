@@ -3,9 +3,10 @@
 """
 import os
 import sys
-import json
+import pdb
 import numpy as np
 import pandas as pd
+from time import time as get_timestamp
 
 now_path = os.path.dirname(__file__)
 sys.path.append(os.path.realpath(os.path.join(now_path, '..')))
@@ -197,7 +198,33 @@ def compute(test_set, scores):
     return pd.DataFrame(result)
 
 
-def compute_ci(num_samping=100):
+class ComputeIndicator(object):
+
+    def __init__(self, indicator_name, test_set, score):
+        if indicator_name == 'benefit':
+            self.indicator_name = 'benefit'
+            self.function_params = {
+                'label': test_set['COG'].values,
+                'score': score,
+                'benefit': test_set['benefit'].fillna(0).values
+            }
+        else:
+            self.indicator_name, self.task = indicator_name.split('_', 1)
+            self.task_index = category_map[self.task.upper()]
+            self.function_params = {
+                'label': test_set[self.task.upper()].values,
+                'score': np.abs(score - self.task_index)
+            }
+        self.compute_function = eval('compute_{}'.format(self.indicator_name))
+
+    def compute(self, index):
+        params = {}
+        for param_name, var in self.function_params.items():
+            params[param_name] = var[index]
+        return self.compute_function(**params)
+
+
+def compute_ci(num_samping=100, save=True):
     """
     1.寻找7个模型：AUC_{NC}、AUC_{MCI}、AUC_{DE}、AP_{NC}、AP_{MCI}、AP_{DE}、benefit最好的模型，
       记为m1、m2、m3、m4、m5、m6、m7，这7个指标记为i1、i2、i3、i4、i5、i6、i7
@@ -209,8 +236,6 @@ def compute_ci(num_samping=100):
          对这100个指标序列，求平均值x和标准差s
       (4)每一个指标都可以计算一个置信度为95%的置信区间：(x - 1.96 * s / sqrt(100), x + 1.96 * s / sqrt(100))
     3.经过以上两步，可以得到19个置信区间：m1~m6各计算2个，m7计算得到7个
-    :param num_samping: int. 抽样的次数，默认为100
-    :return: None
     """
     # 读取数据
     indicator_path = {
@@ -236,97 +261,131 @@ def compute_ci(num_samping=100):
     # 读取原测试集
     test_set_path = os.path.join(root_path, 'lookupcsv/CrossValid/no_cross/test_source.csv')
     test_set = pd.read_csv(test_set_path)
-    benefit = test_set['benefit'].fillna(0).values
-
-    # 定义计算指标的函数
-    def compute_auc_nc(index, score):
-        return compute_auc(test_set['NC'].values[index], score)
-
-    def compute_auc_mci(index, score):
-        return compute_auc(test_set['MCI'].values[index], score)
-
-    def compute_auc_de(index, score):
-        return compute_auc(test_set['DE'].values[index], score)
-
-    def compute_ap_nc(index, score):
-        return compute_ap(test_set['NC'].values[index], score)
-
-    def compute_ap_mci(index, score):
-        return compute_ap(test_set['MCI'].values[index], score)
-
-    def compute_ap_de(index, score):
-        return compute_ap(test_set['DE'].values[index], score)
-
-    def compute_benefit_2(index, score):
-        return compute_benefit(test_set['COG'].values[index], score, benefit[index])
 
     # 定义每个模型需要计算的指标
-    compute_function = {
-        'auc_nc': [
-            compute_auc_nc,
-            compute_benefit_2
-        ],
-        'auc_mci': [
-            compute_auc_mci,
-            compute_benefit_2
-        ],
-        'auc_de': [
-            compute_auc_de,
-            compute_benefit_2
-        ],
-        'ap_nc': [
-            compute_ap_nc,
-            compute_benefit_2
-        ],
-        'ap_mci': [
-            compute_ap_mci,
-            compute_benefit_2
-        ],
-        'ap_de': [
-            compute_ap_de,
-            compute_benefit_2
-        ],
-        'benefit': [
-            compute_auc_nc,
-            compute_auc_mci,
-            compute_auc_de,
-            compute_ap_nc,
-            compute_ap_mci,
-            compute_ap_de,
-            compute_benefit_2
-        ]
+    compute_indicator = {
+        'auc_nc': ['auc_nc', 'benefit'],
+        'auc_mci': ['auc_mci', 'benefit'],
+        'auc_de': ['auc_de', 'benefit'],
+        'ap_nc': ['ap_nc', 'benefit'],
+        'ap_mci': ['ap_mci', 'benefit'],
+        'ap_de': ['ap_de', 'benefit'],
+        'benefit': indicator_name_list
     }
 
     # 计算置信度95%的置信区间
     result = {}
     for indicator_name, (model_name, model_index, indicator_value) in best_model.items():
+        start_time = get_timestamp()
         result[indicator_name] = []
-        print(indicator_name, model_name, model_index, indicator_value)
 
         # 读取模型预测结果
         scores_path = os.path.join(root_path, 'model_eval/eval_result/{}/scores.npy'.format(model_name))
         scores = np.load(scores_path)[model_index]
         num_sample = len(scores)
 
+        # 初始化计算指标的对象
+        compute_obj_list = []
+        for n in compute_indicator[indicator_name]:
+            compute_obj = ComputeIndicator(n, test_set, scores)
+            compute_obj_list.append(compute_obj)
+
         # 抽样并计算每一次抽样的指标
-        func_list = compute_function[indicator_name]
-        samping_indicator = np.zeros((num_samping, len(func_list)), dtype='float32')
+        samping_indicator = np.zeros((num_samping, len(compute_obj_list)), dtype='float32')
         for i in range(num_samping):
             random_index = np.random.randint(0, num_sample, num_sample)
-            score = scores[random_index]
-            for j, f in enumerate(func_list):
-                samping_indicator[i, j] = f(random_index, score)
+            for j, compute_obj in enumerate(compute_obj_list):
+                samping_indicator[i, j] = compute_obj.compute(random_index)
 
         # 计算置信度为95%的置信区间
         for j in range(samping_indicator.shape[1]):
-            var: np.ndarray = samping_indicator[:, j]
+            var = samping_indicator[:, j]
             mean = var.mean()
             std = var.std()
             half = 1.96 * std / np.sqrt(num_samping)
-            section = (float(mean - half), float(mean + half))
+            section = (mean - half, mean + half)
             result[indicator_name].append(section)
 
-    return result
+        # 输出计时
+        print('{} - {:.0f}s'.format(indicator_name, get_timestamp() - start_time))
+
+    # 转换成表格并导出成excel
+    df = {}
+    name_list = ['auc_nc', 'auc_mci', 'auc_de', 'ap_nc', 'ap_mci', 'ap_de']
+    for i, name in enumerate(name_list):
+        df[name] = [
+            '({:.4f}, {:.4f})'.format(*result[name][0]),
+            '({:.4f}, {:.4f})'.format(*result[name][1]),
+            '({:.4f}, {:.4f})'.format(*result['benefit'][i]),
+            '({:.4f}, {:.4f})'.format(*result['benefit'][6])
+        ]
+    df = pd.DataFrame(df, index=['best_per_x', 'best_per_y', 'best_ben_x', 'best_ben_y'])
+    if save:
+        df.to_excel(os.path.join(root_path, 'model_eval/eval_result/ci.xlsx'))
+
+    return df
+
+
+def check_ci(ci):
+    # 读取数据
+    indicator_path = {
+        'mri': os.path.join(root_path, 'model_eval/eval_result/mri/result.csv'),
+        'nonImg': os.path.join(root_path, 'model_eval/eval_result/nonImg/result.csv'),
+        'Fusion': os.path.join(root_path, 'model_eval/eval_result/Fusion/result.csv')
+    }
+    data = pd.DataFrame()
+    indicator_name_list = ['auc_nc', 'auc_mci', 'auc_de', 'ap_nc', 'ap_mci', 'ap_de']
+    for model_name, p in indicator_path.items():
+        data = pd.concat((data, pd.read_csv(p)[indicator_name_list + ['benefit']]))
+    data.index = range(data.shape[0])
+
+    # 寻找MRI、nonImg、Fusion保存的模型中，最好的12个点
+    index = ['best_per_x', 'best_per_y', 'best_ben_x', 'best_ben_y']
+    best_point = {}
+    best_benefit_index = data['benefit'].values.argmax()
+    for indicator_name in indicator_name_list:
+        i = data[indicator_name].values.argmax()
+        best_point[indicator_name] = [
+            data.loc[i, indicator_name],
+            data.loc[i, 'benefit'],
+            data.loc[best_benefit_index, indicator_name],
+            data.loc[best_benefit_index, 'benefit']
+        ]
+    best_point = pd.DataFrame(best_point, index=index)
+
+    # 值校验
+    merge_array = np.zeros(best_point.shape, dtype='bool').tolist()
+    check_array = np.zeros(best_point.shape, dtype='bool')
+    reduce_merge_array = np.zeros((2, best_point.shape[1]), dtype='bool').tolist()
+    reduce_check_array = np.zeros((2, best_point.shape[1]), dtype='bool')
+    for c, indicator_name in enumerate(indicator_name_list):
+        for r, i in enumerate(index):
+            v = best_point.loc[i, indicator_name]
+            ci_lower, ci_upper = ci.loc[i, indicator_name][1:-1].split(', ')
+            ci_lower = float(ci_lower)
+            ci_upper = float(ci_upper)
+            merge_array[r][c] = '{:.4f} [CI: {:.4f}, {:.4f}]'.format(v, ci_lower, ci_upper)
+            check_array[r, c] = ci_lower <= v <= ci_upper
+
+        for r, lower_i, upper_i in zip([0, 1], ['best_per_x', 'best_ben_y'], ['best_ben_x', 'best_per_y']):
+            v1 = round(best_point.loc[lower_i, indicator_name], 4)
+            v2 = round(best_point.loc[upper_i, indicator_name], 4)
+            ci_lower_1, ci_upper_1 = ci.loc[lower_i, indicator_name][1:-1].split(', ')
+            ci_lower_1, ci_upper_1 = round(float(ci_lower_1), 4), round(float(ci_upper_1), 4)
+            ci_lower_2, ci_upper_2 = ci.loc[upper_i, indicator_name][1:-1].split(', ')
+            ci_lower_2, ci_upper_2 = round(float(ci_lower_2), 4), round(float(ci_upper_2), 4)
+            v = v1 - v2
+            ci_lower = ci_lower_1 - ci_upper_2
+            ci_upper = ci_upper_1 - ci_lower_2
+            reduce_merge_array[r][c] = '{:.4f}={:.4f}-{:.4f} [CI: {:.4f}, {:.4f}]'.format(v, v1, v2, ci_lower, ci_upper)
+            reduce_check_array[r, c] = ci_lower <= v <= ci_upper
+
+    merge_array = pd.DataFrame(merge_array, columns=indicator_name_list, index=index)
+    check_array = pd.DataFrame(check_array, columns=indicator_name_list, index=index, dtype='bool')
+    reduce_merge_array = pd.DataFrame(reduce_merge_array, columns=indicator_name_list, index=['performance', 'benefit'])
+    reduce_check_array = pd.DataFrame(reduce_check_array, columns=indicator_name_list, index=['performance', 'benefit'], dtype='bool')
+    print(check_array)
+    print(reduce_check_array)
 
 
 def main(scores_path, test_set_path, result_save_path):
@@ -363,8 +422,8 @@ if __name__ == '__main__':
     """
 
     # 计算置信区间
-    from time import time as get_timestamp
     start_time = get_timestamp()
-    ci = compute_ci()
-    print('用时：{:.0f}'.format(get_timestamp() - start_time))
-    print(json.dumps(ci, indent=4, ensure_ascii=False))
+    ci = compute_ci(num_samping=100, save=False)
+    ci.to_excel('C:/Users/330c-001/Desktop/tmp.xlsx')
+    check_ci(ci)
+    print('总用时：{:.0f}s'.format(get_timestamp() - start_time))
