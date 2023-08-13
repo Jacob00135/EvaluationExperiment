@@ -424,6 +424,5 @@ if __name__ == '__main__':
     # 计算置信区间
     start_time = get_timestamp()
     ci = compute_ci(num_samping=100, save=False)
-    ci.to_excel('C:/Users/330c-001/Desktop/tmp.xlsx')
     check_ci(ci)
     print('总用时：{:.0f}s'.format(get_timestamp() - start_time))
