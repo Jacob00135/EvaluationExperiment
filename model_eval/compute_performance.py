@@ -4,9 +4,11 @@
 import os
 import sys
 import pdb
+import warnings
 import numpy as np
 import pandas as pd
 from time import time as get_timestamp
+from scipy.stats import shapiro
 
 now_path = os.path.dirname(__file__)
 sys.path.append(os.path.realpath(os.path.join(now_path, '..')))
@@ -224,7 +226,29 @@ class ComputeIndicator(object):
         return self.compute_function(**params)
 
 
-def compute_ci(num_samping=100, save=True):
+def normal_3sigma_method(seq):
+    """使用正态分布的3sigma原则计算置信区间"""
+    # 对指标序列进行正态性检验
+    statistic, p = shapiro(seq)
+    is_normal = p > 0.05
+
+    # 计算置信区间
+    mean = seq.mean()
+    std = seq.std()
+    half = 1.96 * std / np.sqrt(len(seq))
+    return mean - half, mean + half, is_normal
+
+
+def fractile_method(seq):
+    """使用百分位数计算置信区间"""
+    seq = np.sort(seq)
+    num_samping = len(seq)
+    lower_i = max(int(np.floor(num_samping * 0.025)) - 1, 0)
+    upper_i = min(int(np.ceil(num_samping * 0.975)) - 1, num_samping - 1)
+    return seq[lower_i], seq[upper_i], True
+
+
+def compute_ci(num_samping=100, save=True, method='3sigma'):
     """
     1.寻找7个模型：AUC_{NC}、AUC_{MCI}、AUC_{DE}、AP_{NC}、AP_{MCI}、AP_{DE}、benefit最好的模型，
       记为m1、m2、m3、m4、m5、m6、m7，这7个指标记为i1、i2、i3、i4、i5、i6、i7
@@ -232,11 +256,20 @@ def compute_ci(num_samping=100, save=True):
       (1)对测试集进行有放回抽取100次，得到100个数据集
       (2)对于100个数据集中的每一个数据集，都计算指标：m1只计算i1和i7、m2只计算i2和i7、m3只计算i3和i7、m4只计算i4和i7、
          m5只计算i5和i7、m6只计算i6和i7，m7需要计算i1~i7
-      (3)经过步骤(2)后，每个指标会有100个值（例如对于i7，每个数据集可计算得到1个值，那么100个数据集就可以得到100个i7），
-         对这100个指标序列，求平均值x和标准差s
-      (4)每一个指标都可以计算一个置信度为95%的置信区间：(x - 1.96 * s / sqrt(100), x + 1.96 * s / sqrt(100))
+      (3)经过步骤(2)后，每个指标会有100个值（例如对于i7，每个数据集可计算得到1个值，那么100个数据集就可以得到100个i7）
+      (4)一个指标序列可以计算一个置信度为95%的置信区间，计算方式有两种：
+         (i)使用正态分布的3sigma原则：(x - 1.96 * s / sqrt(100), x + 1.96 * s / sqrt(100))，其中x为平均值，s为标准差
+         (ii)使用百分位数：先对100个指标序列按从小到大排序，则置信区间为：(2.5%分位数, 97.5%分位数)
     3.经过以上两步，可以得到19个置信区间：m1~m6各计算2个，m7计算得到7个
     """
+    # 确定计算方式
+    if method == '3sigma':
+        compute_ci_function = normal_3sigma_method
+    elif method == 'fractile':
+        compute_ci_function = fractile_method
+    else:
+        raise ValueError('method参数只能取`3sigma`和`fractile`！')
+
     # 读取数据
     indicator_path = {
         'mri': os.path.join(root_path, 'model_eval/eval_result/mri/result.csv'),
@@ -299,12 +332,13 @@ def compute_ci(num_samping=100, save=True):
 
         # 计算置信度为95%的置信区间
         for j in range(samping_indicator.shape[1]):
-            var = samping_indicator[:, j]
-            mean = var.mean()
-            std = var.std()
-            half = 1.96 * std / np.sqrt(num_samping)
-            section = (mean - half, mean + half)
-            result[indicator_name].append(section)
+            ci_lower, ci_upper, is_normal = compute_ci_function(samping_indicator[:, j])
+            if not is_normal:
+                warnings.warn('警告：正态性检验为假，但仍然使用3sigma原则计算CI。\n'
+                              'model_name={} -- best_model={} -- indicator_name={}'.format(
+                    model_name, indicator_name, compute_indicator[indicator_name][j]
+                ))
+            result[indicator_name].append((ci_lower, ci_upper))
 
         # 输出计时
         print('{} - {:.0f}s'.format(indicator_name, get_timestamp() - start_time))
@@ -384,8 +418,7 @@ def check_ci(ci):
     check_array = pd.DataFrame(check_array, columns=indicator_name_list, index=index, dtype='bool')
     reduce_merge_array = pd.DataFrame(reduce_merge_array, columns=indicator_name_list, index=['performance', 'benefit'])
     reduce_check_array = pd.DataFrame(reduce_check_array, columns=indicator_name_list, index=['performance', 'benefit'], dtype='bool')
-    print(check_array)
-    print(reduce_check_array)
+    return merge_array, check_array, reduce_merge_array, reduce_check_array
 
 
 def main(scores_path, test_set_path, result_save_path):
@@ -423,6 +456,14 @@ if __name__ == '__main__':
 
     # 计算置信区间
     start_time = get_timestamp()
-    ci = compute_ci(num_samping=100, save=False)
-    check_ci(ci)
-    print('总用时：{:.0f}s'.format(get_timestamp() - start_time))
+    i = 0
+    while True:
+        ci = compute_ci(num_samping=100, save=False, method='fractile')
+        ci.to_excel('C:/Users/330c-001/Desktop/tmp.xlsx')
+        # ci = pd.read_excel(os.path.join(root_path, 'model_eval/eval_result/ci.xlsx'), index_col=0)
+        merge_array, check_array, reduce_merge_array, reduce_check_array = check_ci(ci)
+        if np.sum(~check_array.to_numpy()) == 0 and np.sum(~reduce_check_array.to_numpy()) == 0:
+            break
+        i = i + 1
+        print('已完成{}次CI计算与检验：已用时{:.0f}s\n'.format(i, get_timestamp() - start_time))
+    print('完毕，总次数：{} -- 总用时：{:.0f}s'.format(i + 1, get_timestamp() - start_time))
