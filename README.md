@@ -8,7 +8,7 @@
 
 运行内存：256GB
 
-GPU：A100 80GB PCIe * 2
+GPU：`A100 80GB PCIe` * 2
 
 CUDA版本：11.2
 
