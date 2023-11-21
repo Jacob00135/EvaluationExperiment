@@ -3,9 +3,13 @@
 # 服务器配置
 
 发行版本：CentOS Linux release 7.9.2009
+
 磁盘容量：17TB
+
 运行内存：256GB
+
 GPU：A100 80GB PCIe * 2
+
 CUDA版本：11.2
 
 # 安装编程环境
