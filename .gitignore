@@ -17,3 +17,4 @@ tb_log
 test.log
 venv
 论文
+data_preprocess/MRI_process/test_data

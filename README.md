@@ -22,7 +22,7 @@ pip install -r requirements.txt
 
 # 数据预处理
 
-数据预处理分成两部分：MRI影像数据预处理和人口统计学特征预处理
+与数据预处理相关的所有文件都存放在目录data_preprocess中，预处理分成两部分：MRI影像数据预处理和人口统计学特征预处理
 
 ## MRI影像数据预处理
 
