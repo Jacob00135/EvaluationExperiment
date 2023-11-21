@@ -5,7 +5,6 @@ backends
 FigureTable
 LICENSE
 MRI_process
-README.md
 catboost_info
 checkpoint_dir
 demo
