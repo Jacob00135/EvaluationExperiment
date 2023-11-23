@@ -513,15 +513,14 @@ if __name__ == '__main__':
     train_data.rename(
         columns={'AGE': 'age', 'PTGENDER': 'gender', 'PTEDUCAT': 'education', 'MMSE': 'mmse'}, inplace=True)
 
-
     origin_data = pd.read_csv('./raw_data/MRI.csv')
-
+    origin_data['SavePath'] = '/home/lxs/ADNI_MRI_NII/nii/'
     origin_data = origin_data.loc[:, ['RID', 'VISCODE', 'filename', 'SavePath']]
     train_data = pd.merge(train_data, origin_data, on=['RID', 'VISCODE'])
     train_data.drop_duplicates(subset=['RID', 'VISCODE'], inplace=True)
     features = [
-        "RID", "VISCODE", "path", 'SavePath', "filename", 'NC', 'MCI', 'DE', 'COG', 'AD', 'PD', 'FTD', 'VD', 'DLB', 'PDD', 'ADD',
-        'ALL', 'OTHER', "age", "gender", "education", "trailA", "trailB", "boston", "digitB", "digitBL", "digitF",
+        "RID", "VISCODE", "path", "SavePath", "filename", "NC", "MCI", "DE", "COG", "AD", "PD", "FTD", "VD", "DLB", "PDD", "ADD",
+        "ALL", "OTHER", "age", "gender", "education", "trailA", "trailB", "boston", "digitB", "digitBL", "digitF",
         "digitFL", "animal", "gds", "lm_imm", "lm_del", "mmse", "npiq_DEL", "npiq_HALL", "npiq_AGIT", "npiq_DEPD", "npiq_ANX",
         "npiq_ELAT", "npiq_APA", "npiq_DISN", "npiq_IRR", "npiq_MOT", "npiq_NITE", "npiq_APP", "faq_BILLS", "faq_TAXES",
         "faq_SHOPPING", "faq_GAMES", "faq_STOVE", "faq_MEALPREP", "faq_EVENTS", "faq_PAYATTN", "faq_REMDATES", "faq_TRAVEL",

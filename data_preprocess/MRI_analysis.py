@@ -5,7 +5,6 @@ import numpy as np
 # one of sc,scmri or m03 data will be used to complete bl visit data.
 def combine_m03_and_sc_into_bl(df, isImage=False, Modality='MRI'):
     rID_set = df['RID'].drop_duplicates()
-    # df = df.set_index(['RID', 'VISCODE2'], drop=False)
     for index, row in rID_set.items():
         rRID = row
         if isImage:
@@ -17,18 +16,10 @@ def combine_m03_and_sc_into_bl(df, isImage=False, Modality='MRI'):
                     (df['VISCODE'] == 'm03') | (df['VISCODE'] == 'bl') | (df['VISCODE'] == 'sc') | (
                     df['VISCODE'] == 'scmri'))]
 
-        #if (row == '4858' and isImage and Modality == 'MRI'):
-        #    print('%%%%%%%%%%%%%%%%%%%%%%%%%')
-        #    print(sub_df)
-        # print('xxxxxxxxxxxxxxxxxx',row)
-        # print('子模块图像数量：',sub_df.shape[0])
         if sub_df.shape[0] > 0:
             bl_flag = sub_df['VISCODE'].isin(['bl']).any()
             sc_flag = sub_df['VISCODE'].isin(['sc', 'scmri']).any()
             m03_flage = sub_df['VISCODE'].isin(['m03']).any()
-            ##bl_flag=sub_df['RID'].isin(['bl']).any()
-            ##sc_flag=sub_df['RID'].isin(['sc','scmri']).any()
-            ##m03_flage=sub_df['RID'].isin(['m03']).any()
 
             if bl_flag and (sc_flag or m03_flage):  # bl 与其他两个阶段中的一个或两个 共存
                 columns = sub_df.columns.values.tolist()
@@ -97,13 +88,7 @@ def combine_m03_and_sc_into_bl(df, isImage=False, Modality='MRI'):
                     # print('修改前：',df.at[index_order, 'VISCODE2'])
                     df.at[index_order, 'VISCODE'] = 'bl'
                     # print('修改后：',df.at[index_order, 'VISCODE2'])
-        # print('xxxxxxxxxxxxxxxxxx',row)
-        # print('xxxxxxxxxxxxxxxxxx',isImage)
-        # print('xxxxxxxxxxxxxxxxxx',Modality)
-        #if ((rRID == '4858') and isImage and (Modality == 'MRI')):
-        #    print('%%%%%%%%%%%%%%%%%%%%%%%%%')
-        #    sdf = df.loc[(df['RID'] == rRID) & (df['Modality'] == Modality)]
-        #    print(sdf)
+
     return df
 
 #df 缺失值填充
@@ -120,41 +105,30 @@ ADNIMERGE = pd.read_csv('./raw_data/ADNIMERGE.csv')
 image_df = pd.read_csv('./raw_data/image_information.csv')
 
 image_df.rename(columns={'VISCODE2': 'VISCODE'}, inplace=True)
-image_df.replace(-4, None, inplace=True)
-image_df.replace(-1, None, inplace=True)
-image_df.replace('-4.0', None, inplace=True)
-image_df.replace('-1.0', None, inplace=True)
-image_df.replace('-4', None, inplace=True)
-image_df.replace('-1', None, inplace=True)
-image_df.replace('', None, inplace=True)
-
+image_df = set_missing_value(image_df)
 image_df_MRI = image_df.loc[image_df['Modality'] == 'MRI']
-image_df_MRI = image_df_MRI.sort_values(by=['RID', 'VISCODE','Description'])
+image_df_MRI = image_df_MRI[image_df_MRI['Description'].str.contains('MPRAGE')]
+image_df_MRI['length_SavePath'] = image_df_MRI['SavePath'].apply(len)
+image_df_MRI = image_df_MRI.sort_values(by=['RID', 'VISCODE','Description', 'length_SavePath'])
 image_df_MRI = image_df_MRI.loc[image_df_MRI['Sequence'] == 1]
 image_df_MRI = image_df_MRI.loc[image_df_MRI['Weighting'] == 'T1']
-# image_df_MRI = image_df_MRI.loc[image_df_MRI['Field Strength'] == 1.5]
-image_df_MRI.dropna(subset=['SavePath'], inplace=True)
-image_df_MRI = image_df_MRI.drop_duplicates(subset=['RID', 'VISCODE'])
-
-
+image_df_MRI = image_df_MRI.loc[image_df_MRI['Field Strength'] == 3]
 image_df_MRI = combine_m03_and_sc_into_bl(image_df_MRI,isImage=True,Modality='MRI')
-image_df_MRI=set_missing_value(image_df_MRI)
+image_df_MRI.dropna(subset=['SavePath'], inplace=True)
+image_df_MRI = image_df_MRI[image_df_MRI.SavePath != '-4']
+
+image_df_MRI = image_df_MRI.drop_duplicates(subset=['RID', 'VISCODE'], keep='first')
+# image_df_MRI.to_csv('./image_df_MRI.csv', index=0)
 
 #++++++++++++++++++++++++++++++++++++++++
-image_df_MRI = image_df_MRI.loc[:, ['RID', 'VISCODE', 'Image ID', 'SavePath']]
-
-MRI_image = pd.merge(ADNIMERGE, image_df_MRI, on=['RID', 'VISCODE'], how='left')
+image_df_MRI = image_df_MRI.loc[:, ['RID', 'VISCODE', 'SavePath']]
+MRI_image = pd.merge(ADNIMERGE, image_df_MRI, on=['RID', 'VISCODE'])
 MRI_image.dropna(subset=['DX'], inplace=True)
 MRI_image = MRI_image.loc[:, ['RID', 'VISCODE', 'DX', 'SavePath']]
-MRI_image['filename']= MRI_image['SavePath'].map(lambda x: str(str(x).split('/')[-1]).replace('.nii', '.npy'))
-MRI_image.dropna(subset=['SavePath'], inplace=True)
+MRI_image['filename'] = MRI_image['SavePath'].map(lambda x: str(str(x).split('/')[-1]).replace('.nii', '.npy'))
 MRI_image = MRI_image.drop_duplicates(subset=['RID', 'VISCODE'])
 
-
-df3 = pd.read_csv('./raw_data/nature_imginfo.csv')
-df3 = df3.loc[:, ['RID', 'VISCODE', 'Phase']]
-df3 = pd.merge(df3, MRI_image, on=['RID', 'VISCODE'])
-df3.to_csv('./raw_data/MRI.csv', index=0)
+MRI_image.to_csv('./raw_data/MRI.csv', index=0)
 
 
 
