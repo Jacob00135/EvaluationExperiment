@@ -1,6 +1,6 @@
 this CrossValid folder will contain 5 fold cross validation split information
 
-step1, run MRI_analysis.py to find MRI data that meets the 1.5 T, T1-weighted MRI scans criteria
+step1, run MRI_analysis.py to find MRI data that meets the 3 T, T1-weighted MRI scans criteria
 
 step2, run the combine.py to combine all subjects from all cohorts and output results in ADNI.csv
 
