@@ -107,4 +107,4 @@ def write(content, csv_file):
 
 
 if __name__ == "__main__":
-    balanced_split(['ADNI'], './CrossValid/')
+    balanced_split(['ADNI_benefit'], './CrossValid/')

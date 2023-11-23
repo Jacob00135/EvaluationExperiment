@@ -34,8 +34,8 @@ if __name__ == "__main__":
             "npiq_DISN", "npiq_IRR", "npiq_MOT", "npiq_NITE", "npiq_APP",
             "faq_BILLS", "faq_TAXES", "faq_SHOPPING", "faq_GAMES", "faq_STOVE",
             "faq_MEALPREP", "faq_EVENTS", "faq_PAYATTN", "faq_REMDATES", "faq_TRAVEL",
-            "his_NACCFAM", "his_CVHATT", "his_CBSTROKE","his_HYPERTEN","his_DEPOTHR", "his_PSYCDIS", "his_ALCOHOL","his_SMOKYRS", "his_PACKSPER"
-            ]
+            "his_NACCFAM", "his_CVHATT", "his_CBSTROKE","his_HYPERTEN","his_DEPOTHR", "his_PSYCDIS", "his_ALCOHOL","his_SMOKYRS", "his_PACKSPER",
+            "benefit"]
     for i in range(5):
         for stage in ['train', 'valid', 'test']:
             append_cols('./CrossValid/cross{}/{}.csv'.format(i, stage), data, cols)
