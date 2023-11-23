@@ -54,7 +54,7 @@ PATH=${FSLDIR}/bin:${PATH}
 export FSLDIR PATH
 ```
 
-然后保存退出。
+7.然后保存退出。
 
 8. 检验是否安装成功：在linux终端输入`flirt -version`可查看相关的FSL版本。
 
