@@ -55,7 +55,9 @@ export FSLDIR PATH
 ```
 
 然后保存退出。
+
 8. 检验是否安装成功：在linux终端输入`flirt -version`可查看相关的FSL版本。
+
 9. 其他安装问题：详见官网[https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FslInstallation/Linux](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FslInstallation/Linux)
 
 ## 人口统计学特征预处理
