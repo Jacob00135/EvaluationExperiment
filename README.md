@@ -60,7 +60,7 @@ export FSLDIR PATH
 
 ## 人口统计学特征预处理
 
-1. 运行`MRI_analysis.py`，找出满足1.5 T、t1加权MRI扫描标准的MRI数据
+1. 运行`MRI_analysis.py`，找出满足3 T、t1加权MRI扫描标准的MRI数据
 2. 运行`combine.py`，合并所有队列中的所有患者，并将结果输出到data/ADNI.csv中
 3. 运行`split.py`，将数据分割为train、valid、test，数据分割结果将存储在CrossValid/cross0
 4. 运行`appendNonImage.py`，通过表连接填充非成像信息
