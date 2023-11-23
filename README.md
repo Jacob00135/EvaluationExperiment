@@ -39,26 +39,10 @@ python fslinstaller.py
 
 3. 接下来会自动下载fsl包并自动安装(stage 1, stage 2), 过程很长。
 4. 默认安装路径是在/usr/local/
-5. 接下来就需要配置路径到环境变量中：
 
-```bash
-root $: gedit ~/.bash_profile
-```
+5. 检验是否安装成功：在linux终端输入`flirt -version`可查看相关的FSL版本。
 
-6. 打开这个文件后，使用编辑模式，在文档最后面加上：
-
-```bash
-FSLDIR=/run/media/user/HGST1/software/fsl
-. ${FSLDIR}/etc/fslconf/fsl.sh
-PATH=${FSLDIR}/bin:${PATH}
-export FSLDIR PATH
-```
-
-7.然后保存退出。
-
-8. 检验是否安装成功：在linux终端输入`flirt -version`可查看相关的FSL版本。
-
-9. 其他安装问题：详见官网[https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FslInstallation/Linux](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FslInstallation/Linux)
+6. 其他安装问题：详见官网[https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FslInstallation/Linux](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FslInstallation/Linux)
 
 ## 人口统计学特征预处理
 
