@@ -22,9 +22,9 @@ pip install -r requirements.txt
 
 # 数据预处理
 
-与数据预处理相关的所有文件都存放在目录data_preprocess中，预处理分成两部分：MRI影像数据预处理和人口统计学特征预处理
+与数据预处理相关的所有文件都存放在目录data_preprocess中
 
-## MRI影像数据预处理
+## 下载安装FSL
 
 1. 在FSL官网[https://fsl.fmrib.ox.ac.uk/fsldownloads_registration](https://fsl.fmrib.ox.ac.uk/fsldownloads_registration)注册下载脚本fslinstaller.py。
 
@@ -44,12 +44,16 @@ python fslinstaller.py
 
 6. 其他安装问题：详见官网[https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FslInstallation/Linux](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FslInstallation/Linux)
 
-## 人口统计学特征预处理
+## MRI数据、人口统计学数据预处理
+
+进入目录“demo_character_process”
 
 1. 运行`MRI_analysis.py`，找出满足3 T、t1加权MRI扫描标准的MRI数据
 2. 运行`combine.py`，合并所有队列中的所有患者，并将结果输出到data/ADNI.csv中
 3. 运行`split.py`，将数据分割为train、valid、test，数据分割结果将存储在CrossValid/cross0
 4. 运行`appendNonImage.py`，通过表连接填充非成像信息
+
+## benefit特征处理
 
 # 训练模型
 
