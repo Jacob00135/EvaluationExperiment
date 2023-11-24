@@ -49,6 +49,7 @@ python fslinstaller.py
 1. 进入目录“demo_character_process”
 2. 运行`MRI_analysis.py`，找出满足3 T、t1加权MRI扫描标准的MRI数据
 3. 运行`combine.py`，合并所有队列中的所有患者，并将结果输出到data/中
+4. 从根目录进入目录“data_preprocess”，运行`data_transform.py`，进行数据清理、分割，处理好的数据保存到dataset/中
 
 # 训练模型
 
