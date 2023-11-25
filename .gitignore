@@ -20,3 +20,4 @@ venv
 data_preprocess/MRI_process/test_data
 data_preprocess.zip
 data_preprocess_20221225.zip
+data_preprocess/ADNI数据预处理步骤.docx

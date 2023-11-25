@@ -79,9 +79,11 @@ class NonImg_Model_Wrapper:
         # initialize data
         self.train_data = []                      # note: self.train_data[i] contains the
         self.imputer = None
+        self.train_set = pd.read_csv(os.path.join(self.csv_dir, 'train.csv'))
+        self.test_set = pd.read_csv(os.path.join(self.csv_dir, 'test.csv'))
+        """
         self.train_set = pd.read_csv(os.path.join(self.csv_dir, 'preprocessed_train.csv'))
         self.valid_set = pd.read_csv(os.path.join(self.csv_dir, 'preprocessed_valid.csv'))
-        """
         self.load_preprocess_data()               #       features and labels for the i th task
         self.valid_set = self.load_dataset(os.path.join(self.csv_dir, 'valid.csv'))
         self.test_set = self.load_dataset(os.path.join(self.csv_dir, 'test.csv'))

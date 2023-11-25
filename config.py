@@ -18,7 +18,7 @@ early_embeddings_path = cntpath(root_path, 't_SNE/early_embeddings')
 data_2_sq_path = cntpath(root_path, 'data_2/sq')
 mri_csv_path = cntpath(root_path, 'lookupcsv/CrossValid/no_cross')
 
-mri_path = '/home/lxs/ADNI/npy/'
+mri_path = os.path.realpath(os.path.join(root_path, 'data_preprocess/dataset/mri_npy'))
 # endregion
 
 # region 常量

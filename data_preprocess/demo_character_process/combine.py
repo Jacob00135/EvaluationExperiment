@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import copy as cp
@@ -537,6 +538,13 @@ if __name__ == '__main__':
     benifit_data = pd.read_csv('./raw_data/benifit_data.csv')
     benifit_data = benifit_data.loc[:, ["RID", "VISCODE", "benefit"]]
     benifit_data = pd.merge(train_data, benifit_data, on=['RID', 'VISCODE'], how='left')
-    benifit_data.to_csv('./data/ADNI_benifit.csv', index=0)
 
+    # MRI exists
+    filenames = benifit_data['filename'].values
+    exists_boolean = np.zeros(benifit_data.shape[0], dtype='bool')
+    for i, fn in enumerate(filenames):
+        path = os.path.join('../dataset/mri_npy/', fn)
+        exists_boolean[i] = os.path.exists(path)
+    benifit_data = benifit_data[exists_boolean]
 
+    benifit_data.to_csv('./data/ADNI_benifit.csv', index=False)

@@ -53,6 +53,42 @@ python fslinstaller.py
 
 # 训练模型
 
+需要训练的模型有三个：MRI模型，nonImg模型，Fusion模型
+
+## 训练MRI模型
+
+MRI模型使用MRI影像数据输入训练，模型的架构、学习率、训练轮数可以在task_config.json中进行配置，一般使用默认配置即可。
+
+运行以下指令来训练MRI模型：
+
+```bash
+python train_mri_model.py
+```
+
+在模型训练的过程中，会保存阶段性训练的模型，保存目录为：`checkpoint_dir/<model_name>/`，其中*model_name*是模型的名称，可以在`train_mri_model.py`中更改，例如将模型名称设置为**MRI_model_20231124**
+
+```python
+def main():
+    model = Multask_Wrapper(
+        tasks=['COG'],
+        device=0,
+        main_config={
+            'model_name': 'MRI_model_20231124',  # 在此处修改模型名称
+            'csv_dir': os.path.realpath(os.path.join(root_path, 'data_preprocess/dataset'))
+        },
+        task_config=read_json('task_config.json'),
+        seed=1000
+    )
+    model.train()
+```
+
+MRI模型需要的训练时间较长，大约需要10小时左右
+
+## 训练nonImg模型
+
+
+
 # 计算相关指标
 
 # 画图展示
+

@@ -20,6 +20,7 @@ from scipy.special import softmax
 import csv
 import pandas as pd
 import shap
+from collections import deque
 from config import root_path, checkpoint_dir_path, tb_log_path, late_embeddings_path, mid_embeddings_path, \
     early_embeddings_path, data_2_sq_path, mri_path
 
@@ -75,12 +76,14 @@ class Multask_Wrapper:
         self.cur_metric = 0                                   # current metric value, if cur_metric > optimal_metric, save weights
         self.train_step = 0
         self.epoch = 0
+        self.accuracy_queue = deque([0 for i in range(10)])                               # early stop
         self.num_epochs = task_config['backbone']['epochs']   # number of epochs to train the model
         self.model_name = main_config['model_name']           # user assigned model_name, will create folder using model_name to log
         self.csv_dir = main_config['csv_dir']                 # data will be loaded from the csv files specified in this directory
         self.config = task_config                             # task_config contains task specific info
         self.n_tasks = len(tasks)                             # number of tasks will be trained
         self.tasks = tasks                                    # a list of tasks names to be trained
+        self.batch_size = self.config[tasks[0]]['batch_size']
 
         # --------------------------------------------------------------------------------------------------------------
         # folders preparation to save checkpoints of model weights *.pth
@@ -103,13 +106,14 @@ class Multask_Wrapper:
             self.backbone = DenseNet().to(self.device)
         elif self.backbone_model == "SENet":
             self.backbone = SENet(self.config['backbone']).to(self.device)
-        print(self.backbone)
+        # print(self.backbone)  # 输出backbone模型结构
 
         for task in tasks:
             if task not in self.config:                     # if the task was not specified in the self.config
                 self.config[task] = self.config['default']  # use default task setting
         self.MLPs = [MLP(self.backbone.size, self.config[t]).to(self.device) for t in tasks]
-        print(self.MLPs)
+        # print(self.MLPs)  # 输出MLP模型结构
+        print('载入模型成功')
 
         # --------------------------------------------------------------------------------------------------------------
         # loss and optimizer
@@ -122,22 +126,32 @@ class Multask_Wrapper:
         if loading_data:
             self.train_dataloaders = []
             self.prepare_dataloader()
+        print('载入数据成功')
 
     def train(self):
+        print('开始训练')
         self.writer = SummaryWriter(self.tb_log_dir)
         for self.epoch in range(self.num_epochs):
             # 训练
             epoch_start_time = time.time()
             self.train_an_epoch()
-            print('Epoch {} -- {:.2f}s'.format(self.epoch + 1, time.time() - epoch_start_time))
             
-            # 验证
-            self.cur_metric = self.valid_an_epoch()
-            train_metric = self.valid_an_epoch(stage='train')
-            print('验证模型：train_auc = {:.4f} -- valid_auc = {:.4f}'.format(train_metric, self.cur_metric))
-            if self.needToSave():
-                self.saveWeights(False)
-                print('保存模型：train_step = {}'.format(self.train_step))
+            # 验证模型并输出
+            train_accuracy = self.compute_accuracy('train')
+            valid_accuracy = self.compute_accuracy('valid')
+            print('Epoch {} -- {:.2f}s -- train_accuracy={:.4f} -- valid_accuracy={:.4f}'.format(
+                self.epoch + 1,
+                time.time() - epoch_start_time,
+                train_accuracy,
+                valid_accuracy
+            ))
+
+            # 提前停止机制
+            self.accuracy_queue.popleft()
+            self.accuracy_queue.append(valid_accuracy) 
+            if np.array(self.accuracy_queue).std() < 0.0003:
+                print('已提前停止')
+                break
 
             # 调整学习率
             self.adjust_learning_rate()
@@ -249,7 +263,7 @@ class Multask_Wrapper:
                     # join the original table with this currently generated to add labels
                     extra_content = pd.read_csv(
                         os.path.realpath(os.path.join(self.csv_dir, stage + '.csv'))
-                    )[["COG", "ADD", "filename"]]
+                    )[["COG", "filename"]]
                     content = pd.read_csv(os.path.realpath(os.path.join(self.tb_log_dir, stage + '_eval.csv')))
                     result = pd.merge(content, extra_content, how="left", on=["filename"])
                     result.to_csv(
@@ -409,7 +423,7 @@ class Multask_Wrapper:
         for task in self.tasks:
             batch_size = self.config[task]['batch_size']
             train_data = TaskData(task, task_config=self.config[task], csv_dir=self.csv_dir, stage='train', seed=self.seed, patch=patch_[0])
-            print("ratio= ", ratio)
+            # print("ratio= ", ratio)
             sample_weight = train_data.get_sample_weights(ratio)
             sampler = torch.utils.data.sampler.WeightedRandomSampler(sample_weight, len(sample_weight))
             self.train_dataloaders.append(DataLoader(train_data, batch_size=batch_size, sampler=sampler, drop_last=True, num_workers=1))
@@ -434,7 +448,47 @@ class Multask_Wrapper:
                 print('保存模型：train_step = {}'.format(self.train_step))
             self.train_step = self.train_step + 1
 
-            print('step {} -- {:.2f}s'.format(self.train_step, time.time() - batch_start_time))
+            # print('step {} -- {:.2f}s'.format(self.train_step, time.time() - batch_start_time))
+
+    def compute_accuracy(self, dataset_name: str) -> float:
+        if dataset_name not in ['train', 'valid']:
+            dataset_name = 'valid' 
+        self.set_train_status(False)
+
+        # 预测
+        if dataset_name == 'train':
+            n_sample = self.iter_per_epoch * self.batch_size
+            prediction = np.zeros(n_sample, 'float32')
+            labels = np.zeros(n_sample, 'int')
+            i = 0
+            for inputs, batch_labels, names in iter(self.train_dataloaders[0]):
+                start = self.batch_size * i
+                end = start + self.batch_size
+                batch_preds = self.MLPs[0](self.backbone(inputs.to(self.device)))
+                prediction[start:end] = batch_preds.data.cpu().squeeze().numpy().astype('float32')
+                labels[start:end] = batch_labels.data.cpu().squeeze().numpy().astype('int')
+                i = i + 1
+        elif dataset_name == 'valid':
+            valid_set = pd.read_csv(os.path.join(self.csv_dir, 'valid.csv'))
+            prediction = np.zeros(valid_set.shape[0], 'float32')
+            labels = valid_set['COG'].values.astype('int')
+            for i, filename in enumerate(valid_set['filename'].values):
+                inputs = np.load(os.path.join(mri_path, filename)).astype('float32')
+                inputs = np.expand_dims(np.expand_dims(inputs, axis=0), axis=0)
+                preds = self.MLPs[0](self.backbone(torch.tensor(inputs).to(self.device)))
+                prediction[i] = preds.data.cpu().squeeze().numpy().astype('float32')
+
+        # 计算accuracy
+        thresholds = (0.5, 1.5)
+        true_count = 0
+        for score, label in zip(prediction, labels):
+            pred_label = 2
+            if score <= thresholds[0]:
+                pred_label = 0
+            elif score <= thresholds[1]:
+                pred_label = 1
+            true_count = true_count + int(pred_label == label)
+        return true_count / labels.shape[0]
 
     @timeit
     def valid_an_epoch(self, metric='AUC', stage='valid'):
@@ -527,16 +581,10 @@ class Multask_Wrapper:
                 self.MLPs[i].load_state_dict(remove_module(torch.load(target_file, map_location='cuda:0')))
 
     def needToSave(self):
-        
-        if self.cur_metric > self.optimal_metric:
-            self.optimal_metric = self.cur_metric
-            return True
-        elif (0 <= self.epoch <= 5) \
+        return (0 <= self.epoch <= 5) \
             or (5 < self.epoch <= 20 and self.train_step % 5 == 0) \
             or (20 < self.epoch <= 50 and self.train_step % 10 == 0) \
-            or (self.epoch > 50 and self.train_step % 20 == 0):
-            return True
-        return False
+            or (self.epoch > 50 and self.train_step % 20 == 0)
 
     def adjust_learning_rate(self):
         if self.epoch in [round(self.num_epochs * 0.333), round(self.num_epochs * 0.666)]:
@@ -549,13 +597,4 @@ class Multask_Wrapper:
 
 
 if __name__ == "__main__":
-    # model = resnet18()
-    # print(model)
-    print(os.path.exists(root_path), root_path)
-    print(os.path.exists(checkpoint_dir_path), checkpoint_dir_path)
-    print(os.path.exists(tb_log_path), tb_log_path)
-    print(os.path.exists(late_embeddings_path), late_embeddings_path)
-    print(os.path.exists(mid_embeddings_path), mid_embeddings_path)
-    print(os.path.exists(early_embeddings_path), early_embeddings_path)
-    print(os.path.exists(data_2_sq_path), data_2_sq_path)
-
+    pass
