@@ -138,17 +138,17 @@ class Multask_Wrapper:
             
             # 验证模型并输出
             train_accuracy = self.compute_accuracy('train')
-            valid_accuracy = self.compute_accuracy('valid')
-            print('Epoch {} -- {:.2f}s -- train_accuracy={:.4f} -- valid_accuracy={:.4f}'.format(
+            test_accuracy = self.compute_accuracy('test')
+            print('Epoch {} -- {:.2f}s -- train_accuracy={:.4f} -- test_accuracy={:.4f}'.format(
                 self.epoch + 1,
                 time.time() - epoch_start_time,
                 train_accuracy,
-                valid_accuracy
+                test_accuracy
             ))
 
             # 提前停止机制
             self.accuracy_queue.popleft()
-            self.accuracy_queue.append(valid_accuracy) 
+            self.accuracy_queue.append(test_accuracy) 
             if np.array(self.accuracy_queue).std() < 0.0003:
                 print('已提前停止')
                 break
@@ -451,8 +451,8 @@ class Multask_Wrapper:
             # print('step {} -- {:.2f}s'.format(self.train_step, time.time() - batch_start_time))
 
     def compute_accuracy(self, dataset_name: str) -> float:
-        if dataset_name not in ['train', 'valid']:
-            dataset_name = 'valid' 
+        if dataset_name not in ['train', 'test']:
+            dataset_name = 'test' 
         self.set_train_status(False)
 
         # 预测
@@ -468,11 +468,11 @@ class Multask_Wrapper:
                 prediction[start:end] = batch_preds.data.cpu().squeeze().numpy().astype('float32')
                 labels[start:end] = batch_labels.data.cpu().squeeze().numpy().astype('int')
                 i = i + 1
-        elif dataset_name == 'valid':
-            valid_set = pd.read_csv(os.path.join(self.csv_dir, 'valid.csv'))
-            prediction = np.zeros(valid_set.shape[0], 'float32')
-            labels = valid_set['COG'].values.astype('int')
-            for i, filename in enumerate(valid_set['filename'].values):
+        elif dataset_name == 'test':
+            test_set = pd.read_csv(os.path.join(self.csv_dir, 'test.csv'))
+            prediction = np.zeros(test_set.shape[0], 'float32')
+            labels = test_set['COG'].values.astype('int')
+            for i, filename in enumerate(test_set['filename'].values):
                 inputs = np.load(os.path.join(mri_path, filename)).astype('float32')
                 inputs = np.expand_dims(np.expand_dims(inputs, axis=0), axis=0)
                 preds = self.MLPs[0](self.backbone(torch.tensor(inputs).to(self.device)))

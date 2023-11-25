@@ -6,7 +6,6 @@ from nonImg_model_wrappers import NonImg_Model_Wrapper
 
 
 def main():
-    pdb.set_trace()
     model = NonImg_Model_Wrapper(
         tasks=['COG'],
         main_config={
