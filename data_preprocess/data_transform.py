@@ -40,7 +40,7 @@ def clear_features(data):
 
 def split_dataset(data, save_path):
     num_sample = data.shape[0]
-    train_sample = int(num_sample * 0.5)
+    train_sample = int(num_sample * 0.8)
     test_sample = num_sample - train_sample
     nan_benefit = pd.isna(data['benefit'].values)
 
