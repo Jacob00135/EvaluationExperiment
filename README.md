@@ -86,9 +86,24 @@ MRI模型需要的训练时间较长，大约需要10小时左右
 
 ## 训练nonImg模型
 
+nonImg模型使用人口统计学特征来训练，运行以下指令开始训练：
 
+```bash
+python train_nonimg_model.py
+```
+
+同样地，nonImg模型每训练一轮就会保存一次模型，保存目录为：`checkpoint_dir/<model_name>`，其中*model_name*是模型的名称，可以在train_nonimg_model.py中更改，例如将模型名称设置为**nonimg_model_20231124**
+
+```python
+def main():
+    # 初始化
+    model_name = 'nonimg_model_20231124'  # 在此处修改模型名称
+```
+
+此模型需要的训练时间较短
 
 # 计算相关指标
 
 # 画图展示
+
 

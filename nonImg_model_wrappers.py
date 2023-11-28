@@ -81,6 +81,8 @@ class NonImg_Model_Wrapper:
         self.imputer = None
         self.train_set = pd.read_csv(os.path.join(self.csv_dir, 'train.csv'))
         self.test_set = pd.read_csv(os.path.join(self.csv_dir, 'test.csv'))
+        self.train_set = self.train_set.drop(['RID', 'VISCODE', 'filename', 'benefit'], axis=1)
+        self.test_set = self.test_set.drop(['RID', 'VISCODE', 'filename', 'benefit'], axis=1)
         """
         self.train_set = pd.read_csv(os.path.join(self.csv_dir, 'preprocessed_train.csv'))
         self.valid_set = pd.read_csv(os.path.join(self.csv_dir, 'preprocessed_valid.csv'))
@@ -96,7 +98,7 @@ class NonImg_Model_Wrapper:
 
     def train(self):
         x_train, y_train = self.train_set.drop(['COG'], axis=1).to_numpy(), self.train_set['COG'].values
-        x_valid, y_valid = self.valid_set.drop(['COG'], axis=1).to_numpy(), self.valid_set['COG'].values
+        x_test, y_test = self.test_set.drop(['COG'], axis=1).to_numpy(), self.test_set['COG'].values
         model = CatBoostRegressor(iterations=1, learning_rate=0.05)
         for epoch in range(100):
             # 训练、保存模型
@@ -110,10 +112,10 @@ class NonImg_Model_Wrapper:
             # 验证模型
             pred_train = self.get_three_classes_prediction(model.predict(x_train))
             train_accuracy = sum(pred_train == y_train) / y_train.shape[0]
-            pred_valid = self.get_three_classes_prediction(model.predict(x_valid))
-            valid_accuracy = sum(pred_valid == y_valid) / y_valid.shape[0]
-            print('Epoch {}: train_accuracy={:.4f} -- valid_accuracy={:.4f}'.format(
-                epoch + 1, train_accuracy, valid_accuracy
+            pred_test = self.get_three_classes_prediction(model.predict(x_test))
+            test_accuracy = sum(pred_test == y_test) / y_test.shape[0]
+            print('Epoch {}: train_accuracy={:.4f} -- test_accuracy={:.4f}'.format(
+                epoch + 1, train_accuracy, test_accuracy
             ))
 
     def get_three_classes_prediction(self, scores: ndarray, thresholds: tuple = (0.5, 1.5)) -> ndarray:

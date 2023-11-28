@@ -1,6 +1,7 @@
 import os
 import pdb
 import sys
+import random
 import numpy as np
 import pandas as pd
 from collections import Counter
@@ -43,28 +44,32 @@ def split_dataset(data, save_path):
     train_sample = int(num_sample * 0.8)
     test_sample = num_sample - train_sample
     nan_benefit = pd.isna(data['benefit'].values)
+    y = data['COG'].values
+    info = np.zeros((4, 3), dtype='int')
+    test_boolean = np.zeros(num_sample, dtype='bool')
+    for c in range(info.shape[1]):
+        category_boolean = y == c
+        category_num = sum(category_boolean)
+        train_category_num = int(category_num * 0.8)
+        test_category_num = category_num - train_category_num
+        nan_category_num = sum(nan_benefit & category_boolean)
+        notnan_category_num = category_num - nan_category_num
+        if notnan_category_num >= test_category_num:
+            notnan_index = np.where((~nan_benefit) & category_boolean)[0]
+            test_notnan_index = random.sample(notnan_index.tolist(), test_category_num)
+            test_boolean[test_notnan_index] = True
+        else:
+            nan_index = np.where((nan_benefit & category_boolean))[0]
+            test_nan_index = random.sample(nan_index.tolist(), len(nan_index) - train_category_num)
+            test_boolean[test_nan_index] = True
+            test_notnan_boolean = (~nan_benefit) & category_boolean
+            test_boolean = test_boolean | test_notnan_boolean
 
-    if nan_benefit.sum() > train_sample:
-        nan_index = np.where(nan_benefit)[0]
-        np.random.shuffle(nan_index)
-        train_index = nan_index[:train_sample]
-        train_boolean = np.zeros(num_sample, dtype='bool')
-        train_boolean[train_index] = True
-        train_set = data[train_boolean]
-        test_set = data[~train_boolean]
-        test_set['benefit'] = test_set['benefit'].fillna(0)
-    else:
-        notna_benefit = ~nan_benefit
-        notna_index = np.where(notna_benefit)[0]
-        np.random.shuffle(notna_index)
-        test_index = notna_index[:test_sample]
-        test_boolean = np.zeros(num_sample, dtype='bool')
-        test_boolean[test_index] = True
-        train_set = data[~test_boolean]
-        test_set = data[test_boolean]
-
-    train_set.to_csv(os.path.join(save_path, 'train.csv'))
-    test_set.to_csv(os.path.join(save_path, 'test.csv'))
+    train_set = data[~test_boolean].copy()
+    test_set = data[test_boolean].copy()
+    test_set['benefit'] = test_set['benefit'].fillna(0)
+    train_set.to_csv(os.path.join(save_path, 'train.csv'), index=False)
+    test_set.to_csv(os.path.join(save_path, 'test.csv'), index=False)
     
     return train_set, test_set
 
