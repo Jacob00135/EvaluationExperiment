@@ -2,17 +2,18 @@
 使用保存的MRI模型对测试集进行预测，并保存预测结果
 """
 import os
+import pdb
 import sys
 import json
 import torch
 import numpy as np
 import pandas as pd
 from time import time as get_timestamp
-from models import _CNN_Bone, MLP
 
 now_path = os.path.dirname(__file__)
 sys.path.append(os.path.realpath(os.path.join(now_path, '..')))
-from config import root_path
+from config import root_path, mri_path
+from models import _CNN_Bone, MLP
 
 
 class MRIModel(object):
@@ -60,8 +61,9 @@ def mri_generator(paths):
         yield mri
 
 
-def main(checkpoint_path, test_set_path, mri_path, result_save_path):
+def main(model_name, test_set_path, result_save_path):
     # 根据下标整理模型
+    checkpoint_path = os.path.join(root_path, 'checkpoint_dir', model_name)
     cp_dict = {}
     for filename in os.listdir(checkpoint_path):
         cp_type, index = filename[:filename.rfind('.')].split('_')
@@ -89,8 +91,7 @@ def main(checkpoint_path, test_set_path, mri_path, result_save_path):
 
 if __name__ == '__main__':
     main(
-        checkpoint_path=os.path.join(root_path, 'checkpoint_dir/MRI_only_v3'),
-        test_set_path=os.path.join(root_path, 'lookupcsv/CrossValid/no_cross/test.csv'),
-        mri_path='/home/lxs/ADNI/npy/',  # 172.29.23.249:/home/lxs/ADNI/npy/
+        model_name='MRI_model_20231124',  # 在此处修改模型名称
+        test_set_path=os.path.join(root_path, 'data_preprocess/dataset/test.csv'),
         result_save_path=os.path.join(root_path, 'model_eval/eval_result/mri/scores.npy')
     )

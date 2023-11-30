@@ -126,6 +126,25 @@ Fusion模型每训练一轮就会保存一次模型，保存目录为：checkpoi
 
 # 计算相关指标
 
+为了评估模型的性能以及后续画图展示，需要计算指标：`sensitivity`、`specificity`、`accuracy`、`auc`、`ap`、`benefit`，按照如下步骤运行代码：
+
+1. 使用MRI模型预测测试集
+
+这一步需要使用训练好的MRI模型来预测整个测试集获得COG_Score，在代码`mri_predict_test_set.py`中指定模型名称：
+
+```python
+if __name__ == '__main__':
+    main(
+        model_name='MRI_model_20231124',  # 在此处修改模型名称
+        test_set_path=os.path.join(root_path, 'data_preprocess/dataset/test.csv'),
+        result_save_path=os.path.join(root_path, 'model_eval/eval_result/mri/scores.npy')
+    )
+```
+
+模型的预测结果将会保存在：`model_eval/eval_result/mri/scores.npy`，预测结果是一个形状为(num_model, num_testset)的二维数组，行数为保存的模型数量，列数为测试集样本量
+
+2. 使用nonImg模型预测测试集
+
 # 画图展示
 
 
