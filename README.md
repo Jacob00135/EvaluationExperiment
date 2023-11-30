@@ -102,6 +102,28 @@ def main():
 
 此模型需要的训练时间较短
 
+## 训练Fusion模型
+
+Fusion模型是一个结合MRI模型和nonImg模型的融合模型，Fusion模型使用人口统计学特征加上`COG_Score`来训练，`COG_Score`是MRI模型的预测结果，所以训练Fusion模型前一定要先训练MRI模型，否则会出错。
+
+训练Fusion模型需要运行代码文件`train_fusion_model.py`，在运行之前，需要在此文件中配置MRI模型名称及Fusion模型名称，MRI模型名称必须是已训练的MRI模型的名称，Fusion模型名称可自定义：
+
+```python
+def main():
+    mri_model_name = 'MRI_model_20231124'  # 在此处修改MRI模型名称
+    fusion_model_name = 'Fusion_model_20231124'  # 在此处修改Fusion模型名称
+```
+
+然后运行以下代码开始训练Fusion模型：
+
+```bash
+python train_fusion_model.py
+```
+
+Fusion模型每训练一轮就会保存一次模型，保存目录为：checkpoint_dir/<model_name>，其中*model_name*是模型的名称，在以上例子中，模型名称为**Fusion_model_20231124**
+
+此模型所需的运行时间较短
+
 # 计算相关指标
 
 # 画图展示

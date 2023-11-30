@@ -6,7 +6,7 @@ from config import root_path
 from catboost import CatBoostRegressor
 
 
-def get_three_classes_prediction(scores, thresholds = (0.5, 1.5)):
+def get_three_classes_prediction(scores, thresholds=(0.5, 1.5)):
     prediction = np.zeros(len(scores), 'int')
     for i in range(len(scores)):
         if scores[i] > thresholds[1]:
@@ -18,7 +18,7 @@ def get_three_classes_prediction(scores, thresholds = (0.5, 1.5)):
 
 def main():
     # 初始化
-    model_name = 'nonimg_model_20231124'
+    model_name = 'nonimg_model_20231124'  # 在此处修改模型名称
     train_set = pd.read_csv(os.path.join(root_path, 'data_preprocess/dataset/train.csv'))
     test_set = pd.read_csv(os.path.join(root_path, 'data_preprocess/dataset/test.csv'))
     train_set = train_set.drop(['RID', 'VISCODE', 'filename', 'benefit'], axis=1)

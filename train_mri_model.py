@@ -10,7 +10,7 @@ def main():
         tasks=['COG'],
         device=0,
         main_config={
-            'model_name': 'MRI_model_20231124',
+            'model_name': 'MRI_model_20231124',  # 在此处修改模型名称
             'csv_dir': os.path.realpath(os.path.join(root_path, 'data_preprocess/dataset'))
         },
         task_config=read_json('task_config.json'),
