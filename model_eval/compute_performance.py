@@ -422,39 +422,37 @@ def check_ci(ci):
 
 
 def main(scores_path, test_set_path, result_save_path):
-    result = compute(pd.read_csv(test_set_path), np.load(scores_path))
+    test_set = pd.read_csv(test_set_path)
+    for i, category in enumerate(category_list):
+        test_set[category] = (test_set['COG'] == i).astype('int')
+    result = compute(test_set, np.load(scores_path))
     result.to_csv(result_save_path, index=False)
 
 
 if __name__ == '__main__':
     # mri
-    """
     main(
         scores_path=os.path.join(root_path, 'model_eval/eval_result/mri/scores.npy'),
-        test_set_path=os.path.join(root_path, 'lookupcsv/CrossValid/no_cross/test_source.csv'),
+        test_set_path=os.path.join(root_path, 'data_preprocess/dataset/test.csv'),
         result_save_path=os.path.join(root_path, 'model_eval/eval_result/mri/result.csv')
     )
-    """
 
     # nonImg
-    """
     main(
         scores_path=os.path.join(root_path, 'model_eval/eval_result/nonImg/scores.npy'),
-        test_set_path=os.path.join(root_path, 'lookupcsv/CrossValid/no_cross/test_source.csv'),
+        test_set_path=os.path.join(root_path, 'data_preprocess/dataset/test.csv'),
         result_save_path=os.path.join(root_path, 'model_eval/eval_result/nonImg/result.csv')
     )
-    """
 
     # Fusion
-    """
     main(
         scores_path=os.path.join(root_path, 'model_eval/eval_result/Fusion/scores.npy'),
-        test_set_path=os.path.join(root_path, 'lookupcsv/CrossValid/no_cross/test_source.csv'),
+        test_set_path=os.path.join(root_path, 'data_preprocess/dataset/test.csv'),
         result_save_path=os.path.join(root_path, 'model_eval/eval_result/Fusion/result.csv')
     )
-    """
 
     # 计算置信区间
+    """
     start_time = get_timestamp()
     i = 0
     while True:
@@ -467,3 +465,4 @@ if __name__ == '__main__':
         i = i + 1
         print('已完成{}次CI计算与检验：已用时{:.0f}s\n'.format(i, get_timestamp() - start_time))
     print('完毕，总次数：{} -- 总用时：{:.0f}s'.format(i + 1, get_timestamp() - start_time))
+    """

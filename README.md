@@ -126,6 +126,8 @@ Fusion模型每训练一轮就会保存一次模型，保存目录为：checkpoi
 
 # 计算相关指标
 
+所有计算指标相关的代码都放在目录`model_eval`中，所以在进行下列步骤时，要先进入此目录。
+
 为了评估模型的性能以及后续画图展示，需要计算指标：`sensitivity`、`specificity`、`accuracy`、`auc`、`ap`、`benefit`，按照如下步骤运行代码：
 
 ## 1.使用MRI模型预测测试集
@@ -147,7 +149,9 @@ if __name__ == '__main__':
 python mri_predict_test_set.py
 ```
 
-模型的预测结果将会保存在：`model_eval/eval_result/mri/scores.npy`，预测结果是一个形状为(num_model, num_testset)的二维数组，行数为保存的模型数量，列数为测试集样本量
+代码所需的执行时间较长，大约1.5小时
+
+模型的预测结果将会保存在：`model_eval/eval_result/mri/scores.npy`，预测结果是一个形状为(num_model, num_testset)的二维数组，行数为保存的模型数量，列数为测试集样本量。
 
 ## 2.使用nonImg模型预测测试集
 
@@ -202,6 +206,20 @@ python nonImg_predict_test_set.py
 ```
 
 模型的预测结果将会保存在：`model_eval/eval_result/Fusion/scores.npy`，预测结果是一个形状为(num_model, num_testset)的二维数组，行数为保存的模型数量，列数为测试集样本量
+
+## 4.使用测试集的预测值和真实值计算指标
+
+直接运行：
+
+```bash
+python compute_performance.py
+```
+
+运行完毕后，三个模型的指标计算结果将保存在：
+
+- model_eval/eval_result/mri/result.csv
+- model_eval/eval_result/nonImg/result.csv
+- model_eval/eval_result/Fusion/result.csv
 
 # 画图展示
 
