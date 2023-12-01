@@ -13,12 +13,13 @@ sys.path.append(os.path.realpath(os.path.join(now_path, '..')))
 from config import root_path
 
 
-def main(test_set_path, checkpoint_dir_path, result_save_path):
+def main(test_set_path, model_name, result_save_path):
     # 载入数据
     test_set = pd.read_csv(test_set_path)
-    x_test = test_set.drop(['COG'], axis=1).to_numpy()
+    x_test = test_set.drop(['RID', 'VISCODE', 'filename', 'benefit', 'COG'], axis=1)
 
     # 遍历模型预测
+    checkpoint_dir_path = os.path.join(root_path, 'checkpoint_dir', model_name)
     filenames = sorted(os.listdir(checkpoint_dir_path), key=lambda v: int(v.rsplit('_', 1)[1]))
     result = np.zeros((len(filenames), test_set.shape[0]), 'float32')
     for i, fn in enumerate(filenames):
@@ -30,7 +31,7 @@ def main(test_set_path, checkpoint_dir_path, result_save_path):
 
 if __name__ == '__main__':
     main(
-        test_set_path=os.path.join(root_path, 'lookupcsv/CrossValid/no_cross/fusion_test.csv'),
-        checkpoint_dir_path=os.path.join(root_path, 'checkpoint_dir/Fusion_v1'),
-        result_save_path=os.path.join(root_path, 'model_eval/eval_result/Fusion/scores.npy')
+        test_set_path=os.path.join(root_path, 'data_preprocess/dataset/test.csv'),
+        model_name='nonimg_model_20231124',  # 在此处修改模型名称
+        result_save_path=os.path.join(root_path, 'model_eval/eval_result/nonImg/scores.npy')  # 在此处修改模型保存路径
     )

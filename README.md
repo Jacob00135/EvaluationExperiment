@@ -141,9 +141,34 @@ if __name__ == '__main__':
     )
 ```
 
+然后执行：
+
+```bash
+python mri_predict_test_set.py
+```
+
 模型的预测结果将会保存在：`model_eval/eval_result/mri/scores.npy`，预测结果是一个形状为(num_model, num_testset)的二维数组，行数为保存的模型数量，列数为测试集样本量
 
 2. 使用nonImg模型预测测试集
+
+这一步需要编辑、使用代码文件`nonImg_predict_test_set.py`，首先，在文件中指定模型名称（必须是已训练过的nonImg模型的名称），并修改参数`result_save_path`的值：
+
+```python
+if __name__ == '__main__':
+    main(
+        test_set_path=os.path.join(root_path, 'data_preprocess/dataset/test.csv'),
+        model_name='nonimg_model_20231124',  # 在此处修改模型名称
+        result_save_path=os.path.join(root_path, 'model_eval/eval_result/nonImg/scores.npy')  # 在此处修改模型保存路径
+    )
+```
+
+然后执行：
+
+```bash
+python nonImg_predict_test_set.py
+```
+
+模型的预测结果将会保存在：`model_eval/eval_result/nonImg/scores.npy`，预测结果是一个形状为(num_model, num_testset)的二维数组，行数为保存的模型数量，列数为测试集样本量
 
 # 画图展示
 
