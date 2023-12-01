@@ -72,19 +72,14 @@ def main(model_name, test_set_path, result_save_path):
         else:
             cp_dict[index] = {cp_type: os.path.join(checkpoint_path, filename)}
 
-    # 载入MRI数据（生成器）
-    test_set = pd.read_csv(test_set_path)
-    mri_path_generator = map(lambda fn: os.path.join(mri_path, fn), test_set['filename'].values)
-    mri_iter = mri_generator(mri_path_generator)
-
     # 预测并保存
-    result = np.zeros((len(cp_dict), len(test_set)), 'float32')
+    filenames = pd.read_csv(test_set_path)['filename'].values
+    paths = [os.path.join(mri_path, fn) for fn in filenames]
+    result = np.zeros((len(cp_dict), len(paths)), 'float32')
     for i, (model_index, cp) in enumerate(cp_dict.items()):
         start_time = get_timestamp()
-        save_path = os.path.join(result_save_path, '{}.npy'.format(model_index))
-        if os.path.exists(save_path):
-            continue
-        result[i] = MRIModel(cp['backbone'], cp['COG']).predict(mri_iter, len(test_set))
+        mri_iter = mri_generator(paths)
+        result[i] = MRIModel(cp['backbone'], cp['COG']).predict(mri_iter, len(paths))
         print('已预测：{} -- {:.0f}s'.format(model_index, get_timestamp() - start_time))
     np.save(result_save_path, result)
 
