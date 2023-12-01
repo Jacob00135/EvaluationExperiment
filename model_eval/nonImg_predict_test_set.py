@@ -13,10 +13,13 @@ sys.path.append(os.path.realpath(os.path.join(now_path, '..')))
 from config import root_path
 
 
-def main(test_set_path, model_name, result_save_path):
+def main(test_set_path, model_name, result_save_path, cog_score=None):
     # 载入数据
     test_set = pd.read_csv(test_set_path)
     x_test = test_set.drop(['RID', 'VISCODE', 'filename', 'benefit', 'COG'], axis=1)
+    if cog_score is not None:
+        x_test.insert(x_test.shape[1], 'COG_Score', cog_score)
+    x_test = x_test.to_numpy()
 
     # 遍历模型预测
     checkpoint_dir_path = os.path.join(root_path, 'checkpoint_dir', model_name)
@@ -32,6 +35,7 @@ def main(test_set_path, model_name, result_save_path):
 if __name__ == '__main__':
     main(
         test_set_path=os.path.join(root_path, 'data_preprocess/dataset/test.csv'),
-        model_name='nonimg_model_20231124',  # 在此处修改模型名称
-        result_save_path=os.path.join(root_path, 'model_eval/eval_result/nonImg/scores.npy')  # 在此处修改模型保存路径
+        model_name='Fusion_model_20231124',  # 在此处修改模型名称
+        result_save_path=os.path.join(root_path, 'model_eval/eval_result/Fusion/scores.npy'),
+        cog_score=np.load(os.path.join(root_path, 'model_eval/eval_result/mri/scores.npy'))[-1, :]
     )

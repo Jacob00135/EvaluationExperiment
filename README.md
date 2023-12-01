@@ -128,7 +128,7 @@ Fusion模型每训练一轮就会保存一次模型，保存目录为：checkpoi
 
 为了评估模型的性能以及后续画图展示，需要计算指标：`sensitivity`、`specificity`、`accuracy`、`auc`、`ap`、`benefit`，按照如下步骤运行代码：
 
-1. 使用MRI模型预测测试集
+## 1.使用MRI模型预测测试集
 
 这一步需要使用训练好的MRI模型来预测整个测试集获得COG_Score，在代码`mri_predict_test_set.py`中指定模型名称：
 
@@ -149,16 +149,22 @@ python mri_predict_test_set.py
 
 模型的预测结果将会保存在：`model_eval/eval_result/mri/scores.npy`，预测结果是一个形状为(num_model, num_testset)的二维数组，行数为保存的模型数量，列数为测试集样本量
 
-2. 使用nonImg模型预测测试集
+## 2.使用nonImg模型预测测试集
 
-这一步需要编辑、使用代码文件`nonImg_predict_test_set.py`，首先，在文件中指定模型名称（必须是已训练过的nonImg模型的名称），并修改参数`result_save_path`的值：
+首先，编辑代码文件`nonImg_predict_test_set.py`，主要是修改main函数的参数值：
+
+- test_set_path不用修改
+- model_name需要修改成已训练过的nonImg模型的名称
+- result_save_path修改为：`os.path.join(root_path, 'model_eval/eval_result/Fusion/scores.npy')`
+- cog_score改为None
 
 ```python
 if __name__ == '__main__':
     main(
         test_set_path=os.path.join(root_path, 'data_preprocess/dataset/test.csv'),
         model_name='nonimg_model_20231124',  # 在此处修改模型名称
-        result_save_path=os.path.join(root_path, 'model_eval/eval_result/nonImg/scores.npy')  # 在此处修改模型保存路径
+        result_save_path=os.path.join(root_path, 'model_eval/eval_result/nonImg/scores.npy'),
+        cog_score=None
     )
 ```
 
@@ -169,6 +175,33 @@ python nonImg_predict_test_set.py
 ```
 
 模型的预测结果将会保存在：`model_eval/eval_result/nonImg/scores.npy`，预测结果是一个形状为(num_model, num_testset)的二维数组，行数为保存的模型数量，列数为测试集样本量
+
+## 3.使用Fusion模型预测测试集
+
+首先，编辑代码文件`nonImg_predict_test_set.py`，主要是修改main函数的参数值：
+
+- test_set_path不用修改
+- model_name需要修改成已训练过的Fusion模型的名称
+- result_save_path修改为：`os.path.join(root_path, 'model_eval/eval_result/Fusion/scores.npy')`
+- cog_score改为`np.load(os.path.join(root_path, 'model_eval/eval_result/mri/scores.npy'))[-1, :]`
+
+```python
+if __name__ == '__main__':
+    main(
+        test_set_path=os.path.join(root_path, 'data_preprocess/dataset/test.csv'),
+        model_name='Fusion_model_20231124',  # 在此处修改模型名称
+        result_save_path=os.path.join(root_path, 'model_eval/eval_result/Fusion/scores.npy'),
+        cog_score=np.load(os.path.join(root_path, 'model_eval/eval_result/mri/scores.npy'))[-1, :]
+    )
+```
+
+然后执行：
+
+```bash
+python nonImg_predict_test_set.py
+```
+
+模型的预测结果将会保存在：`model_eval/eval_result/Fusion/scores.npy`，预测结果是一个形状为(num_model, num_testset)的二维数组，行数为保存的模型数量，列数为测试集样本量
 
 # 画图展示
 
