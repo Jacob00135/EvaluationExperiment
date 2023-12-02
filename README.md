@@ -223,4 +223,11 @@ python compute_performance.py
 
 # 画图展示
 
+进入目录model_eval，执行：
+
+```bash
+python draw_graph.py
+```
+
+运行完毕后，将会在`model_eval/eval_result/images/all_test_set/scatter`生成散点图，在`model_eval/eval_result/images/all_test_set/heatmap`生成热力图
 
